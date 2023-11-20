@@ -19,7 +19,7 @@
  (name my_static_site_generator)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml dune core)
+ (depends ocaml dune core omd)
  (tags
   (topics "to describe" your project)))
 

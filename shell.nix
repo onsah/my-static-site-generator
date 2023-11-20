@@ -9,6 +9,7 @@ pkgs.mkShell {
 		ocamlPackages.ocaml-lsp
 		ocamlPackages.ocamlformat-rpc-lib
 		ocamlPackages.core
+		ocamlPackages.omd
 		ocamlformat
 		dune_3
 	];
