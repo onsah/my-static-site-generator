@@ -1,0 +1,4 @@
+(executable
+ (public_name my_static_site_generator)
+ (name main)
+ (libraries my_static_site_generator))
