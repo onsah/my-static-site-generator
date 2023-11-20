@@ -5,8 +5,10 @@ pkgs.mkShell {
 		# Package goes there
 		# You can search packages via `nix search $term` or from https://search.nixos.org/packages
 		ocaml
+		ocamlPackages.findlib
 		ocamlPackages.ocaml-lsp
 		ocamlPackages.ocamlformat-rpc-lib
+		ocamlPackages.core
 		ocamlformat
 		dune_3
 	];
