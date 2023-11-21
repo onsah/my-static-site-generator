@@ -1,11 +1,14 @@
 # Aiono's Website
 
-Hi, I am Aiono. I am a software developer. Currently I am studying MsC. student at Freiburg University and work part time as software engineer.
+Hi! I am Onur Sahin. I am a software developer. 
 
-I have 2 years of professional software development experience. I always wanted to try getting into programming languages & formal verification area so I am doing masters to see if I want to pursue it.
+I got my bachelors in Computer Science from Bilkent University in 2021. Since then I worked full time at [Carbon Health](https://carbonhealth.com/). In 2023 I started doing masters in Computer Science/Informatik at [Freiburg University](https://uni-freiburg.de/en/). I love software engineering but I always wanted to try getting into programming languages & formal verification area so I am doing masters to see if I would like it.
 
-I like to play guitar a lot and I want to write my music in the future. I also like listening to music a lot and I have a vinyl collection that is ever growing. I like to play board games. I try to get into bouldering.
+I like to play guitar a lot and I want to write my music in the future. I am also a huge music fan (Favorite groups are Opeth and Porcupine Tree). And I have a vinyl collection that is ever growing. I like to play board games. I am not very sportive person but I try to get into bouldering.
 
 ## Profiles
+I have online presence with the following profiles.
+
 * [Github](https://github.com/onsah)
 * [Mastodon](https://mastodon.social/@aiono)
+* [Email](mailto:sahinonur2000@hotmail.com)
