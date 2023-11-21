@@ -1,2 +1,0 @@
-(library
- (name my_static_site_generator))
