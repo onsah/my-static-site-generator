@@ -12,8 +12,7 @@ let generate_index_page current_dir =
   Templatizer.generate_index_page ~content:index_html
 
 let () = 
-  let current_dir = Core.Sys.getenv_exn "PROJECT_ROOT"  in
   (* Generate index page *)
-  let index_page = generate_index_page current_dir in
+  let index_page = generate_index_page Environment.project_root in
   (* Generate index page *)
   SiteBuilder.create_directory ~out_dir:"dist" ~index_page:index_page

@@ -5,9 +5,7 @@ let sprintf = Printf.sprintf
 
 let ($) = Soup.($)
 
-let current_dir = Core.Sys.getenv_exn "PROJECT_ROOT"
-
-let index_template_path = (sprintf "%s/content/templates/template.html" current_dir) 
+let index_template_path = (sprintf "%s/content/templates/template.html" Environment.project_root) 
 
 let generate_index_page ~content = 
   let 
