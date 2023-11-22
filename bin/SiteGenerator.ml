@@ -1,9 +1,7 @@
 
 open Core
 
-type site = {
-    index_page : Templatizer.page;
-}
+open Site
 
 let generate_html_from_markdown ~input_file_path =
   let file_str = In_channel.read_all input_file_path in

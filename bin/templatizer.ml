@@ -1,5 +1,4 @@
 
-type page = Soup.soup Soup.node
 
 let sprintf = Printf.sprintf
 
