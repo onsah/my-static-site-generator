@@ -2,7 +2,7 @@ open Core
 
 let sprintf = Printf.sprintf
 
-let create_directory ~out_dir ~index_page =
+let create ~out_dir ~index_page =
   match (Sys_unix.file_exists out_dir, Sys_unix.is_directory out_dir) with
   | `No, _ ->
       print_endline
