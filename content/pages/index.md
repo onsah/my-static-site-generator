@@ -7,8 +7,7 @@ I got my bachelors in Computer Science from Bilkent University in 2021. Since th
 I like to play guitar a lot and I want to write my music in the future. I am also a huge music fan (Favorite groups are Opeth and Porcupine Tree). And I have a vinyl collection that is ever growing. I like to play board games. I am not very sportive person but I try to get into bouldering.
 
 ## Profiles
-I have online presence with the following profiles.
-
+If you are interested, feel free to contact me from the following profiles.
 * [Github](https://github.com/onsah)
 * [Mastodon](https://mastodon.social/@aiono)
 * [Email](mailto:sahinonur2000@hotmail.com)
