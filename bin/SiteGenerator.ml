@@ -15,6 +15,6 @@ let generate_index_page () =
     generate_html_from_markdown ~input_file_path:index_page_abs_path
     |> Soup.parse
   in
-  Templatizer.generate_index_page ~content:index_html
+  Template.apply_for_index_page ~content:index_html
 
 let generate () = { index_page = generate_index_page () }
