@@ -3,7 +3,7 @@ open Core
 let sprintf = Printf.sprintf
 
 let create ~out_dir ~index_page =
-  match (Sys_unix.file_exists out_dir, Sys_unix.is_directory out_dir) with
+  (match (Sys_unix.file_exists out_dir, Sys_unix.is_directory out_dir) with
   | `No, _ ->
       print_endline
         (sprintf "Out directory %s does not exit. Creating..." out_dir);
@@ -13,10 +13,6 @@ let create ~out_dir ~index_page =
         (sprintf "Out directory %s already exists and it's not a folder."
            out_dir);
       exit 1
-  | _ ->
-      ();
-
-      Soup.write_file
-        (sprintf "%s/index.html" out_dir)
-        (Soup.to_string index_page);
-      prerr_endline (sprintf "Site generated at: '%s'" out_dir)
+  | _ -> ());
+  Soup.write_file (sprintf "%s/index.html" out_dir) (Soup.to_string index_page);
+  prerr_endline (sprintf "Site generated at: '%s'" out_dir)
