@@ -22,7 +22,7 @@ let generate_index_page () =
   in
   let index_page_path =
     Filename.concat Environment.project_root
-      (Filename.of_parts [ "content"; "templates"; "template.html" ])
+      (Filename.of_parts [ "content"; "templates"; "index.html" ])
   in
   let index_page =
     index_page_path |> Core.In_channel.read_all |> Soup.parse
