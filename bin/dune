@@ -1,4 +1,4 @@
 (executable
  (public_name my_static_site_generator)
  (name main)
- (libraries core core_unix omd lambdasoup))
+ (libraries core core_unix core_unix.sys_unix omd lambdasoup))
