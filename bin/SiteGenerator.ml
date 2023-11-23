@@ -18,8 +18,8 @@ let instantiate_template_for_index_page (template : Site.page)
 
 let generate_index_page (environment : Environment.environment) =
   let index_content_path =
-    Filename.concat environment.project_root
-      (Filename.of_parts [ "content"; "pages"; "index.md" ])
+    Filename.concat environment.content_path
+      (Filename.of_parts [ "pages"; "index.md" ])
   in
   let index_content_page =
     generate_html_from_markdown
@@ -27,8 +27,8 @@ let generate_index_page (environment : Environment.environment) =
     |> Soup.parse
   in
   let index_page_path =
-    Filename.concat environment.project_root
-      (Filename.of_parts [ "content"; "templates"; "index.html" ])
+    Filename.concat environment.content_path
+      (Filename.of_parts [ "templates"; "index.html" ])
   in
   let index_page = index_page_path |> Core.In_channel.read_all |> Soup.parse in
   instantiate_template_for_index_page index_page index_content_page;

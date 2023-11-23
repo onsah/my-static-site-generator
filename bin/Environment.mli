@@ -1,3 +1,3 @@
 open Core
 
-type environment = { project_root : Filename.t }
+type environment = { content_path : Filename.t; out_path : Filename.t }

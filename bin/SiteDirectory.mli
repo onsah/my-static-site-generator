@@ -4,5 +4,5 @@
 
 type site_directory
 
-val make : Environment.environment -> out_dir:string -> site_directory
+val make : Environment.environment -> site_directory
 val create : site_directory -> index_page:Site.page -> unit

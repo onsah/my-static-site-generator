@@ -2,18 +2,12 @@ open Core
 
 let sprintf = Printf.sprintf
 
-type site_directory = {
-  environment : Environment.environment;
-  out_dir : string;
-}
+type site_directory = { environment : Environment.environment }
 
-let make environment ~out_dir = { environment; out_dir }
+let make environment = { environment }
 
 let create site_directory ~index_page =
-  let out_path =
-    Filename.concat site_directory.environment.project_root
-      site_directory.out_dir
-  in
+  let out_path = site_directory.environment.out_path in
   (match (Sys_unix.file_exists out_path, Sys_unix.is_directory out_path) with
   | `No, _ ->
       print_endline
