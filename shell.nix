@@ -14,5 +14,6 @@ pkgs.mkShell {
 		ocamlPackages.lambdasoup
 		ocamlformat
 		dune_3
+		just
 	];
 }
