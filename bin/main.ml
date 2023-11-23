@@ -1,10 +1,9 @@
 open Core
 
 let main content_path out_path =
-  let environment : Environment.environment = { content_path; out_path } in
-  let site_generator = SiteGenerator.make environment in
+  let site_generator = SiteGenerator.make ~content_path in
   let site = SiteGenerator.generate site_generator in
-  let site_directory = SiteDirectory.make environment in
+  let site_directory = SiteDirectory.make ~out_path in
   SiteDirectory.create site_directory ~index_page:site.index_page
 
 let () =
