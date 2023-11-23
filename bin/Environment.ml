@@ -1,1 +1,3 @@
-let project_root = Core.Sys.getenv_exn "PROJECT_ROOT"
+open Core
+
+type environment = { project_root : Filename.t }

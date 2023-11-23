@@ -1,3 +1,3 @@
 open Core
 
-val project_root : Filename.t
+type environment = { project_root : Filename.t }
