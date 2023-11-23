@@ -6,4 +6,5 @@ let () =
   in
   let site_generator = SiteGenerator.make environment in
   let site = SiteGenerator.generate site_generator in
-  SiteDirectory.create ~out_dir:"dist" ~index_page:site.index_page
+  let site_directory = SiteDirectory.make environment ~out_dir:"dist" in
+  SiteDirectory.create site_directory ~index_page:site.index_page

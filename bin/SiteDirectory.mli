@@ -2,4 +2,7 @@
     Module for creating the static site directory    
 *)
 
-val create : out_dir:string -> index_page:Site.page -> unit
+type site_directory
+
+val make : Environment.environment -> out_dir:string -> site_directory
+val create : site_directory -> index_page:Site.page -> unit
