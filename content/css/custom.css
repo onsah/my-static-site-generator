@@ -1,12 +1,12 @@
 :root:not([data-theme]) {
-    --background-color: #4a1e9e;
-    --h1-color: #ddcbff;
-    --h2-color: #ddcbff;
-    --color: #edd8e5;
-    --primary: #e2bf2b;
-    --primary-hover: #9e861e;
-    --primary-focus: rgba(155, 144, 93, 0.59);
-    --card-background-color: #270f53;
+    --background-color: #2B232B;
+    --h1-color: #E2E2E2;
+    --h2-color: #E2E2E2;
+    --color: #E2E2E2;
+    --primary: #c5545a;
+    --primary-hover: #E74D28;
+    --primary-focus: #c25b6092;
+    --card-background-color: #4b1e21;
 }
 
 .no-hover {
