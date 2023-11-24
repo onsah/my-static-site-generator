@@ -6,7 +6,7 @@ type site_directory = { out_path : Filename.t }
 
 let make ~out_path = { out_path }
 
-let create site_directory ~index_page =
+let create site_directory ~(site : Site.t) =
   let out_path = site_directory.out_path in
   (match (Sys_unix.file_exists out_path, Sys_unix.is_directory out_path) with
   | `No, _ ->
@@ -19,5 +19,10 @@ let create site_directory ~index_page =
            out_path);
       exit 1
   | _ -> ());
-  Soup.write_file (sprintf "%s/index.html" out_path) (Soup.to_string index_page);
+  Out_channel.write_all
+    (sprintf "%s/index.html" out_path)
+    ~data:(Soup.to_string site.index_page);
+  Out_channel.write_all
+    (Filename.concat out_path "blog.html")
+    ~data:(Soup.to_string site.blog_page);
   prerr_endline (sprintf "Site generated at: '%s'" out_path)

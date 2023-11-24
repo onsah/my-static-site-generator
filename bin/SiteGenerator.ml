@@ -43,5 +43,18 @@ let generate_index_page (content_path : Filename.t) =
     ~header:header_component ~content:index_content_page;
   index_page
 
+let generate_blog_page (content_path : Filename.t) =
+  let blog_page_path =
+    Filename.concat content_path
+      (Filename.of_parts [ "templates"; "blog.html" ])
+  in
+  let blog = blog_page_path |> In_channel.read_all |> Soup.parse in
+  let header_component = get_header_component content_path in
+  Soup.replace (blog $ "#header") header_component;
+  blog
+
 let generate site_generator =
-  { index_page = generate_index_page site_generator.content_path }
+  {
+    index_page = generate_index_page site_generator.content_path;
+    blog_page = generate_blog_page site_generator.content_path;
+  }
