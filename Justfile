@@ -6,4 +6,7 @@ generate-help:
 
 generate:
     dune exec bin/main.exe -- --content-path ./content --out-path ./dist
+
+format:
+    dune fmt
     
