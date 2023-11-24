@@ -6,5 +6,6 @@
   core_unix
   core_unix.sys_unix
   core_unix.command_unix
+  yojson
   omd
   lambdasoup))

@@ -12,6 +12,7 @@ pkgs.mkShell {
 		ocamlPackages.core_unix
 		ocamlPackages.omd
 		ocamlPackages.lambdasoup
+		ocamlPackages.yojson
 		ocamlformat
 		dune_3
 		just
