@@ -1,0 +1,14 @@
+:root:not([data-theme]) {
+    --background-color: #5C5470;
+    --h1-color: #dbd8e8;
+    --h2-color: #dbd8e8;
+    --color: #dbd8e8;
+    --primary: rgb(50, 44, 64);
+    --primary-hover: #B9B4C7;
+    --primary-focus: rgba(122, 107, 157, 0.383);
+    --card-background-color: #352F44;
+}
+
+.no-hover {
+    pointer-events: none;
+}
