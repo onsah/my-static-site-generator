@@ -51,6 +51,36 @@ let hydrate_blog_page ~(blog_page : Site.page) ~(header_component : Site.page)
          Soup.append_child (blog_page $ "#posts") preview));
   ()
 
+type post_metadata = { title : string; created_at : Date.t; summary : string }
+
+let parse_post_metadata ~(metadata : Yojson.Basic.t) : post_metadata =
+  let extract_string_field ~fields ~field_name =
+    match List.find fields ~f:(fun (name, _) -> name = field_name) with
+    | Some (_, `String field_value) -> field_value
+    | Some _ ->
+        raise
+          (Invalid_argument
+             (sprintf "'%s' field must contain string" field_name))
+    | None ->
+        raise
+          (Invalid_argument
+             (sprintf "expected '%s' field in the metadata" field_name))
+  in
+  match metadata with
+  | `Assoc fields ->
+      let title = extract_string_field ~fields ~field_name:"title" in
+      let created_at =
+        extract_string_field ~fields ~field_name:"created-at" |> Date.of_string
+      in
+      let summary = extract_string_field ~fields ~field_name:"summary" in
+      { title; created_at; summary }
+  | _ -> raise (Invalid_argument "Expected json object")
+
+let date_to_string date =
+  sprintf "%i %s %i" (Date.day date)
+    (Month.to_string (Date.month date))
+    (Date.year date)
+
 let generate_post_preview_component ~(content_path : Filename.t)
     ~(metadata : Yojson.Basic.t) =
   let post_preview_component =
@@ -59,45 +89,12 @@ let generate_post_preview_component ~(content_path : Filename.t)
          (Filename.of_parts [ "templates"; "post-preview.html" ]))
     |> Soup.parse
   in
-  (* TODO: Parse the metadata into a record *)
-  let title, created_at, summary =
-    match metadata with
-    | `Assoc fields ->
-        (* TODO: Factor into function *)
-        let title =
-          match List.find fields ~f:(fun (name, _) -> name = "title") with
-          | Some (_, `String title) -> title
-          | Some _ ->
-              raise (Invalid_argument "'title' field must contain string")
-          | None ->
-              raise (Invalid_argument "expected 'title' field in the metadata")
-        in
-        let created_at =
-          match List.find fields ~f:(fun (name, _) -> name = "created-at") with
-          | Some (_, `String created_at) -> created_at
-          | Some _ ->
-              raise (Invalid_argument "'created-at' field must contain string")
-          | None ->
-              raise
-                (Invalid_argument "expected 'created-at' field in the metadata")
-        in
-        let summary =
-          match List.find fields ~f:(fun (name, _) -> name = "summary") with
-          | Some (_, `String summary) -> summary
-          | Some _ ->
-              raise (Invalid_argument "'summary' field must contain string")
-          | None ->
-              raise
-                (Invalid_argument "expected 'summary' field in the metadata")
-        in
-        (title, created_at, summary)
-    | _ -> raise (Invalid_argument "Expected json object")
-  in
+  let { title; created_at; summary } = parse_post_metadata ~metadata in
   (* Fill the component *)
   Soup.append_child (post_preview_component $ "#title") (Soup.create_text title);
   Soup.replace
     (post_preview_component $ "#created-at")
-    (Soup.create_text created_at);
+    (Soup.create_text (date_to_string created_at));
   Soup.replace (post_preview_component $ "#summary") (Soup.create_text summary);
   post_preview_component
 
