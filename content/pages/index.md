@@ -1,6 +1,6 @@
-# Aiono's Website
+# About Me
 
-Hi! I am Onur Sahin. I am a software developer. 
+Hi! My name is Onur Sahin (I use Aiono nickname online). I am a software developer. 
 
 I got my bachelors in Computer Science from Bilkent University in 2021. Since then I worked full time at [Carbon Health](https://carbonhealth.com/). In 2023 I started doing masters in Computer Science/Informatik at [Freiburg University](https://uni-freiburg.de/en/). I love software engineering but I always wanted to try getting into programming languages & formal verification area so I am doing masters to see if I would like it.
 
