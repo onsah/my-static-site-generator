@@ -12,3 +12,7 @@
 .no-hover {
     pointer-events: none;
 }
+
+.no-color {
+   --color: var(--color) !important;
+}
