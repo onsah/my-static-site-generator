@@ -25,4 +25,5 @@ let create site_directory ~(site : Site.t) =
   Out_channel.write_all
     (Filename.concat out_path "blog.html")
     ~data:(Soup.to_string site.blog_page);
+  Out_channel.write_all (Filename.concat out_path "style.css") ~data:site.style;
   prerr_endline (sprintf "Site generated at: '%s'" out_path)

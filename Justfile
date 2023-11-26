@@ -11,4 +11,4 @@ format:
     dune fmt
 
 serve:
-    miniserve .
+    miniserve dist/

@@ -128,8 +128,21 @@ let generate_blog_page (content_path : Filename.t) =
   hydrate_blog_page ~blog_page ~header_component ~post_preview_components;
   blog_page
 
+let generate_style ~(content_path : Filename.t) =
+  let css_pico_path =
+    Filename.concat content_path
+      (Filename.of_parts [ "css"; "pico-1.5.10"; "css"; "pico.min.css" ])
+  and css_custom_path =
+    Filename.concat content_path (Filename.of_parts [ "css"; "custom.css" ])
+  in
+  let css_pico = In_channel.read_all css_pico_path
+  and css_custom = In_channel.read_all css_custom_path in
+  (* Concat all styles *)
+  String.concat [ css_pico; css_custom ] ~sep:"\n"
+
 let generate { content_path } =
   {
     index_page = generate_index_page content_path;
     blog_page = generate_blog_page content_path;
+    style = generate_style ~content_path;
   }
