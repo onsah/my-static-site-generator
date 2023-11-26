@@ -11,4 +11,4 @@ format:
     dune fmt
 
 serve:
-    miniserve dist/
+    miniserve dist/ --index index.html
