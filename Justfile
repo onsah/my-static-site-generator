@@ -9,4 +9,6 @@ generate:
 
 format:
     dune fmt
-    
+
+serve:
+    miniserve .

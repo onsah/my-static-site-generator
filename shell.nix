@@ -16,5 +16,6 @@ pkgs.mkShell {
 		ocamlformat
 		dune_3
 		just
+		miniserve
 	];
 }
