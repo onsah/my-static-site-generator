@@ -6,7 +6,7 @@ let main content_path out_path =
   let site_directory = SiteDirectory.make ~out_path in
   SiteDirectory.create site_directory ~site
 
-let () =
+let command =
   let content_path =
     Command.Param.flag "--content-path"
       ~doc:"Path of the site content directory"
@@ -20,9 +20,8 @@ let () =
       (Command.Flag.required Command.Param.string)
   in
   let params = Command.Param.both content_path out_path in
-  let command =
-    Command.basic ~summary:"Generate static site from content"
-      (Command.Param.map params ~f:(fun (content_path, out_path) () ->
-           main content_path out_path))
-  in
-  Command_unix.run command
+  Command.basic ~summary:"Generate static site from content"
+    (Command.Param.map params ~f:(fun (content_path, out_path) () ->
+         main content_path out_path))
+
+let () = Command_unix.run command

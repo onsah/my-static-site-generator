@@ -1,4 +1,4 @@
-build:
+build: format
     dune build
 
 generate-help:
