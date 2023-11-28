@@ -25,7 +25,7 @@ let hydrate_index_page ~(index_page : Site.page) ~(header_component : Site.page)
   Soup.replace (index_page $ "#page-content") content_component;
   Soup.replace (index_page $ "#header") header_component
 
-let generate_index_page (content_path : Filename.t) =
+let generate_index_page ~(content_path : Filename.t) =
   let index_content_path =
     Filename.concat content_path (Filename.of_parts [ "pages"; "index.md" ])
   in
@@ -117,7 +117,7 @@ let read_posts ~(content_path : Filename.t) =
   in
   post_preview_components
 
-let generate_blog_page (content_path : Filename.t) =
+let generate_blog_page ~(content_path : Filename.t) =
   let blog_page_path =
     Filename.concat content_path
       (Filename.of_parts [ "templates"; "blog.html" ])
@@ -142,7 +142,7 @@ let generate_style ~(content_path : Filename.t) =
 
 let generate { content_path } =
   {
-    index_page = generate_index_page content_path;
-    blog_page = generate_blog_page content_path;
+    index_page = generate_index_page ~content_path;
+    blog_page = generate_blog_page ~content_path;
     style = generate_style ~content_path;
   }
