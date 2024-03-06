@@ -10,5 +10,5 @@ generate:
 format:
     dune fmt
 
-serve:
+serve: generate
     miniserve dist/ --index index.html
