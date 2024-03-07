@@ -1,5 +1,3 @@
-* Use Make instead of Just
-* Refactor generator program into a subdirectory
 * Auto-enter nix shell if not entered
 * Theme
 * Picture
