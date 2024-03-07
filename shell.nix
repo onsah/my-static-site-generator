@@ -18,4 +18,8 @@ pkgs.mkShell {
 		just
 		miniserve
 	];
+	
+	shellHook = ''
+	  export PROJECT_ROOT=$(pwd);
+	'';	
 }

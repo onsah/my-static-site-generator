@@ -1,3 +1,6 @@
+* Use Make instead of Just
+* Refactor generator program into a subdirectory
+* Auto-enter nix shell if not entered
 * Theme
 * Picture
 * Templating
@@ -6,3 +9,4 @@
 * Post page
 * Favorite Projects Section
 * Documentation
+* Auto install Nix if doesn't exist
