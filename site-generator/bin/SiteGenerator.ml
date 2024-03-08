@@ -13,7 +13,7 @@ let generate_html_from_markdown ~markdown_str =
   let markdown = Omd.of_string markdown_str in
   Omd.to_html markdown
 
-let get_header_component (content_path : Filename.t) =
+let generate_header_component (content_path : Filename.t) =
   let path =
     Filename.concat content_path
       (Filename.of_parts [ "templates"; "header.html" ])
@@ -39,7 +39,7 @@ let generate_index_page ~(content_path : Filename.t) =
       (Filename.of_parts [ "templates"; "index.html" ])
   in
   let index_page = index_page_path |> Core.In_channel.read_all |> Soup.parse in
-  let header_component = get_header_component content_path in
+  let header_component = generate_header_component content_path in
   hydrate_index_page ~index_page ~header_component ~content_component;
   index_page
 
@@ -98,7 +98,7 @@ let generate_post_preview_component ~(content_path : Filename.t)
   Soup.replace (post_preview_component $ "#summary") (Soup.create_text summary);
   post_preview_component
 
-let read_posts ~(content_path : Filename.t) =
+let generate_post_preview_components ~(content_path : Filename.t) =
   let pages_path =
     Filename.concat content_path (Filename.of_parts [ "pages"; "posts" ])
   in
@@ -123,8 +123,8 @@ let generate_blog_page ~(content_path : Filename.t) =
       (Filename.of_parts [ "templates"; "blog.html" ])
   in
   let blog_page = blog_page_path |> In_channel.read_all |> Soup.parse in
-  let header_component = get_header_component content_path in
-  let post_preview_components = read_posts ~content_path in
+  let header_component = generate_header_component content_path in
+  let post_preview_components = generate_post_preview_components ~content_path in
   hydrate_blog_page ~blog_page ~header_component ~post_preview_components;
   blog_page
 
