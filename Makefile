@@ -1,14 +1,20 @@
-build:
+build: check-env
 	$(MAKE) -C site-generator build
 
-generate-help:
+generate-help: check-env
 	$(MAKE) -C site-generator generate-help
 
-generate:
+generate: check-env
 	$(MAKE) -C site-generator generate
 
-format:
+format: check-env
 	$(MAKE) -C site-generator format
 
-serve:
+serve: check-env
 	$(MAKE) -C site-generator serve
+
+check-env: check-env
+ifndef AIONO_WEBSITE_GENERATE_ENV_ENABLED
+	echo -e "Not inside the project's environment.\nThe dependencies are provided via the shell.nix file in the project's root."
+	exit 1
+endif

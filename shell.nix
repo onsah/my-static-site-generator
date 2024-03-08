@@ -21,5 +21,6 @@ pkgs.mkShell {
 	
 	shellHook = ''
 	  export PROJECT_ROOT=$(pwd);
+		export AIONO_WEBSITE_GENERATE_ENV_ENABLED=true;
 	'';	
 }
