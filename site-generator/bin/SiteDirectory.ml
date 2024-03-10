@@ -28,13 +28,13 @@ let create site_directory ~(site : Site.t) =
   Out_channel.write_all
     (Filename.concat out_path "blog.html")
     ~data:(Soup.to_string site.blog_page);
-  Core_unix.mkdir_p ~perm:unix_file_permissions 
+  Core_unix.mkdir_p ~perm:unix_file_permissions
     (Filename.concat out_path "posts");
-  ignore (List.map site.posts 
-    ~f:(fun post ->
-        printf "out path: %s\n" (Filename.concat out_path post.path);
-        Out_channel.write_all
-          (Filename.concat out_path post.path)
-          ~data:(Soup.to_string post.page);
-        ()));
+  ignore
+    (List.map site.posts ~f:(fun post ->
+         printf "out path: %s\n" (Filename.concat out_path post.path);
+         Out_channel.write_all
+           (Filename.concat out_path post.path)
+           ~data:(Soup.to_string post.page);
+         ()));
   prerr_endline (sprintf "Site generated at: '%s'" out_path)
