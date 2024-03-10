@@ -1,4 +1,4 @@
-build: check-env
+build: check-env format
 	$(MAKE) -C site-generator build
 
 generate-help: check-env
