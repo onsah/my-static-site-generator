@@ -83,8 +83,10 @@ let date_to_string date =
     (Date.year date)
 
 let post_path ~(title : string) =
-  "/posts/" ^ (title |> String.lowercase |> 
-                (Str.global_replace (Str.regexp " ") "-"))
+  "/posts/" 
+    ^ (title |> String.lowercase |> 
+        (Str.global_replace (Str.regexp " ") "-")) 
+    ^ ".html"
 
 let generate_post_components ~(content_path : Filename.t)
     ~(metadata : Yojson.Basic.t) : post_with_preview =
@@ -95,12 +97,14 @@ let generate_post_components ~(content_path : Filename.t)
     |> Soup.parse
   in
   let { title; created_at; summary } = parse_post_metadata ~metadata in
+  let post_path = post_path ~title
+  in
   (* Fill the component *)
   Soup.append_child (preview $ "#title") (Soup.create_text title);
   Soup.replace (preview $ "#created-at")
     (Soup.create_text (date_to_string created_at));
   Soup.replace (preview $ "#summary") (Soup.create_text summary);
-  Soup.set_attribute "href" (post_path ~title) (preview $ "#post-link");
+  Soup.set_attribute "href" post_path (preview $ "#post-link");
   let page =
     In_channel.read_all
       (Filename.concat content_path
@@ -108,7 +112,7 @@ let generate_post_components ~(content_path : Filename.t)
     |> Soup.parse
   in
   (* Fill the post page *)
-  { preview; post = { title; page } }
+  { preview; post = { title; page; path = post_path } }
 
 let generate_post_components_list ~(content_path : Filename.t) : post_with_preview list
     =
