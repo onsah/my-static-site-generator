@@ -1,6 +1,8 @@
 content_path = $$PROJECT_ROOT/content/
 dist_path = $$PROJECT_ROOT/dist/
 
+.PHONY: test
+
 build:
 	dune build
 
@@ -13,6 +15,9 @@ generate:
 
 format:
 	dune fmt
+
+test:
+	dune test
 
 serve: generate
 	miniserve $(dist_path) --index index.html

@@ -10,6 +10,9 @@ generate: check-env
 format: check-env
 	$(MAKE) -C site-generator format
 
+test:
+	$(MAKE) -C site-generator test
+
 serve: check-env
 	$(MAKE) -C site-generator serve
 
