@@ -26,6 +26,9 @@ let hydrate_index_page ~(index_page : Site.page) ~(header_component : Site.page)
   Soup.replace (index_page $ "#page-content") content_component;
   Soup.replace (index_page $ "#header") header_component
 
+let clone_page (page : Site.page) : page =
+  Soup.parse (Soup.to_string page)
+
 let generate_index_page ~(content_path : Filename.t) =
   let index_content_path =
     Filename.concat content_path (Filename.of_parts [ "pages"; "index.md" ])
@@ -88,8 +91,10 @@ let post_path ~(title : string) =
         (Str.global_replace (Str.regexp " ") "-")) 
     ^ ".html"
 
-let generate_post_components ~(content_path : Filename.t)
-    ~(metadata : Yojson.Basic.t) : post_with_preview =
+let generate_post_components 
+    ~(content_path : Filename.t)
+    ~(metadata : Yojson.Basic.t)
+    ~(header_component : Site.page) : post_with_preview =
   let preview =
     In_channel.read_all
       (Filename.concat content_path
@@ -99,7 +104,7 @@ let generate_post_components ~(content_path : Filename.t)
   let { title; created_at; summary } = parse_post_metadata ~metadata in
   let post_path = post_path ~title
   in
-  (* Fill the component *)
+  (* Fill the preview component *)
   Soup.append_child (preview $ "#title") (Soup.create_text title);
   Soup.replace (preview $ "#created-at")
     (Soup.create_text (date_to_string created_at));
@@ -112,9 +117,12 @@ let generate_post_components ~(content_path : Filename.t)
     |> Soup.parse
   in
   (* Fill the post page *)
+  Soup.replace (page $ "#header") header_component;
   { preview; post = { title; page; path = post_path } }
 
-let generate_post_components_list ~(content_path : Filename.t) : post_with_preview list
+let generate_post_components_list 
+  ~(content_path : Filename.t)
+  ~(header_component : Site.page) : post_with_preview list
     =
   let pages_path =
     Filename.concat content_path (Filename.of_parts [ "pages"; "posts" ])
@@ -130,25 +138,24 @@ let generate_post_components_list ~(content_path : Filename.t) : post_with_previ
         let metadata =
           file_path |> In_channel.read_all |> Yojson.Basic.from_string
         in
-        generate_post_components ~content_path ~metadata)
+        generate_post_components ~content_path ~metadata ~header_component:(clone_page header_component))
   in
   post_components_list
 
-let generate_blog_page ~(content_path : Filename.t) =
+let generate_blog_page ~(content_path : Filename.t) ~(header_component : Site.page) =
   let blog_page_path =
     Filename.concat content_path
       (Filename.of_parts [ "templates"; "blog.html" ])
   in
   let blog_page = blog_page_path |> In_channel.read_all |> Soup.parse in
-  let header_component = generate_header_component content_path in
-  let post_components_list = generate_post_components_list ~content_path in
+  let post_components_list = generate_post_components_list ~content_path ~header_component in
   hydrate_blog_page ~blog_page ~header_component
     ~post_preview_components:
       (List.map post_components_list ~f:(fun { preview; _ } -> preview));
   blog_page
 
-let generate_posts ~(content_path : Filename.t) =
-  let post_components_list = generate_post_components_list ~content_path
+let generate_posts ~(content_path : Filename.t) ~(header_component : Site.page) =
+  let post_components_list = generate_post_components_list ~content_path ~header_component
   in
   List.map post_components_list ~f:(fun { post ; _ } -> post)
 
@@ -165,9 +172,11 @@ let generate_style ~(content_path : Filename.t) =
   String.concat [ css_pico; css_custom ] ~sep:"\n"
 
 let generate { content_path } =
+  let header_component = generate_header_component content_path in
   {
     index_page = generate_index_page ~content_path;
-    blog_page = generate_blog_page ~content_path;
+    blog_page = generate_blog_page ~content_path
+      ~header_component:(clone_page header_component);
     style = generate_style ~content_path;
-    posts = generate_posts ~content_path;
+    posts = generate_posts ~content_path ~header_component:(clone_page header_component);
   }
