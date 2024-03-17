@@ -21,3 +21,6 @@ test:
 
 serve: generate
 	miniserve $(dist_path) --index index.html
+
+repl:
+	dune utop

@@ -10,11 +10,14 @@ generate: check-env
 format: check-env
 	$(MAKE) -C site-generator format
 
-test:
+test: check-env
 	$(MAKE) -C site-generator test
 
 serve: check-env
 	$(MAKE) -C site-generator serve
+
+repl: check-env
+	$(MAKE) -C site-generator repl
 
 check-env:
 ifndef AIONO_WEBSITE_GENERATE_ENV_ENABLED
