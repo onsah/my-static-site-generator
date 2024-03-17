@@ -90,8 +90,8 @@ let post_path ~(title : string) =
   ^ ".html"
 
 let generate_post_components ~(content_path : Filename.t)
-    ~(metadata : Yojson.Basic.t) ~(header_component : Site.page) :
-    post_with_preview =
+    ~(metadata : Yojson.Basic.t) ~(post_component : Site.page)
+    ~(header_component : Site.page) : post_with_preview =
   let preview =
     In_channel.read_all
       (Filename.concat content_path
@@ -114,6 +114,7 @@ let generate_post_components ~(content_path : Filename.t)
   in
   (* Fill the post page *)
   Soup.replace (page $ "#header") header_component;
+  Soup.replace (page $ "#blog-content") post_component;
   { preview; post = { title; page; path = post_path } }
 
 let generate_post_components_list ~(content_path : Filename.t)
@@ -121,18 +122,26 @@ let generate_post_components_list ~(content_path : Filename.t)
   let pages_path =
     Filename.concat content_path (Filename.of_parts [ "pages"; "posts" ])
   in
-  let file_paths = Sys_unix.readdir pages_path |> List.of_array in
-  let metadata_file_names =
-    List.filter file_paths ~f:(fun file ->
-        Filename.split_extension file |> fun (_, ext) -> ext = Some "json")
+  let file_names = Sys_unix.readdir pages_path |> List.of_array in
+  let file_names_before_ext =
+    file_names
+    |> List.filter_map ~f:(fun file ->
+           let file_name_before_ext, ext = file |> Filename.split_extension in
+           match ext with Some "md" -> Some file_name_before_ext | _ -> None)
   in
   let post_components_list =
-    List.map metadata_file_names ~f:(fun file_name ->
-        let file_path = Filename.concat pages_path file_name in
+    List.map file_names_before_ext ~f:(fun file_name_before_ext ->
+        let metadata_path = Filename.concat pages_path file_name_before_ext ^ ".json" in
         let metadata =
-          file_path |> In_channel.read_all |> Yojson.Basic.from_string
+          metadata_path |> In_channel.read_all |> Yojson.Basic.from_string
         in
-        generate_post_components ~content_path ~metadata
+        let post_path = Filename.concat pages_path file_name_before_ext ^ ".md" in
+        let post_component =
+          generate_html_from_markdown
+            ~markdown_str:(post_path |> In_channel.read_all)
+          |> Soup.parse
+        in
+        generate_post_components ~content_path ~metadata ~post_component
           ~header_component:(clone_page header_component))
   in
   post_components_list
