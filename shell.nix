@@ -14,10 +14,11 @@ pkgs.mkShell {
 		ocamlPackages.lambdasoup
 		ocamlPackages.yojson
 		ocamlPackages.ounit2
+		ocamlPackages.utop
 		ocamlformat
 		dune_3
-		just
 		miniserve
+		gnumake
 	];
 	
 	shellHook = ''
