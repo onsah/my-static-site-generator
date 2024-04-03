@@ -28,7 +28,6 @@ end = struct
 
   let separator = '/'
 
-  (* TODO: Trim trailing / *)
   let from path =
     let parts =
       String.split_on_chars path ~on:[ '/' ]
