@@ -131,11 +131,15 @@ let generate_post_components_list ~(content_path : Filename.t)
   in
   let post_components_list =
     List.map file_names_before_ext ~f:(fun file_name_before_ext ->
-        let metadata_path = Filename.concat pages_path file_name_before_ext ^ ".json" in
+        let metadata_path =
+          Filename.concat pages_path file_name_before_ext ^ ".json"
+        in
         let metadata =
           metadata_path |> In_channel.read_all |> Yojson.Basic.from_string
         in
-        let post_path = Filename.concat pages_path file_name_before_ext ^ ".md" in
+        let post_path =
+          Filename.concat pages_path file_name_before_ext ^ ".md"
+        in
         let post_component =
           generate_html_from_markdown
             ~markdown_str:(post_path |> In_channel.read_all)
@@ -180,6 +184,8 @@ let generate_style ~(content_path : Filename.t) =
   (* Concat all styles *)
   String.concat [ css_pico; css_custom ] ~sep:"\n"
 
+(* def generate( { content_path, a, b } ):
+     obj.content_path *)
 let generate { content_path } =
   let header_component = generate_header_component content_path in
   {
@@ -192,3 +198,5 @@ let generate { content_path } =
       generate_posts ~content_path
         ~header_component:(clone_page header_component);
   }
+
+let generate2 _ = failwith "Unimplemented"
