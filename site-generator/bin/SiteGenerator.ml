@@ -89,6 +89,12 @@ let post_path ~(title : string) =
   ^ (title |> String.lowercase |> Str.global_replace (Str.regexp " ") "-")
   ^ ".html"
 
+let post_path2 ~(title : string) =
+  Path.join (Path.from "posts")
+    (Path.from
+       ((title |> String.lowercase |> Str.global_replace (Str.regexp " ") "-")
+       ^ ".html"))
+
 let generate_post_components ~(content_path : Filename.t)
     ~(metadata : Yojson.Basic.t) ~(post_component : Site.page)
     ~(header_component : Site.page) : post_with_preview =
@@ -100,6 +106,7 @@ let generate_post_components ~(content_path : Filename.t)
   in
   let { title; created_at; summary } = parse_post_metadata ~metadata in
   let post_path = post_path ~title in
+  let path = post_path2 ~title in
   (* Fill the preview component *)
   Soup.append_child (preview $ "#title") (Soup.create_text title);
   Soup.replace (preview $ "#created-at")
@@ -115,7 +122,7 @@ let generate_post_components ~(content_path : Filename.t)
   (* Fill the post page *)
   Soup.replace (page $ "#header") header_component;
   Soup.replace (page $ "#blog-content") post_component;
-  { preview; post = { title; page; path = post_path } }
+  { preview; post = { title; page; path = post_path; path2 = path } }
 
 let generate_post_components_list ~(content_path : Filename.t)
     ~(header_component : Site.page) : post_with_preview list =
@@ -199,4 +206,31 @@ let generate { content_path } =
         ~header_component:(clone_page header_component);
   }
 
-let generate2 _ = failwith "Unimplemented"
+let generate2 { content_path } =
+  let header_component = generate_header_component content_path in
+  let index_file =
+    {
+      content = generate_index_page ~content_path |> Soup.to_string;
+      path = Path.from "index.html";
+    }
+  in
+  let style_file =
+    { content = generate_style ~content_path; path = Path.from "style.css" }
+  in
+  let blog_file =
+    {
+      content =
+        generate_blog_page ~content_path
+          ~header_component:(clone_page header_component)
+        |> Soup.to_string;
+      path = Path.from "blog.html";
+    }
+  in
+  let post_files =
+    List.map
+      (generate_posts ~content_path
+         ~header_component:(clone_page header_component))
+      ~f:(fun post ->
+        { content = post.page |> Soup.to_string; path = post.path2 })
+  in
+  { output_files = [ index_file; blog_file; style_file ] @ post_files }

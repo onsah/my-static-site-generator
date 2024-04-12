@@ -2,20 +2,6 @@ open Core
 
 type page = Soup.soup Soup.node
 
-type post = {
-  title : string;
-  (* path of the post in the website hiearachy *)
-  path : string;
-  page : page;
-}
-
-type t = {
-  index_page : page;
-  blog_page : page;
-  style : string;  (** CSS file *)
-  posts : post list;
-}
-
 module Path : sig
   type t
 
@@ -58,7 +44,7 @@ end = struct
         let result, _ =
           List.fold ~init:([], [])
             ~f:(fun (result, acc) curr ->
-              let acc = List.append acc [curr] in
+              let acc = List.append acc [ curr ] in
               (acc :: result, acc))
             rest_parts_except_last
         in
@@ -70,6 +56,21 @@ end
 type output_file = {
   path : Path.t;  (** Relative to the out directory *)
   content : string;
+}
+
+type post = {
+  title : string;
+  (* path of the post in the website hiearachy *)
+  path : string;
+  path2 : Path.t;
+  page : page;
+}
+
+type t = {
+  index_page : page;
+  blog_page : page;
+  style : string;  (** CSS file *)
+  posts : post list;
 }
 
 type t2 = { output_files : output_file list }
