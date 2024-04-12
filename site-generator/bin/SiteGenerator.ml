@@ -11,12 +11,11 @@ let generate_html_from_markdown ~markdown_str =
   let markdown = Omd.of_string markdown_str in
   Omd.to_html markdown
 
-let generate_header_component (content_path : Filename.t) =
+let generate_header_component (content_path : Path.t) =
   let path =
-    Filename.concat content_path
-      (Filename.of_parts [ "templates"; "header.html" ])
+    Path.join content_path (Path.from_parts [ "templates"; "header.html" ])
   in
-  path |> In_channel.read_all |> Soup.parse
+  path |> DiskIO.read_all |> Soup.parse
 
 let hydrate_index_page ~(index_page : Site.page) ~(header_component : Site.page)
     ~(content_component : Site.page) =
@@ -25,20 +24,19 @@ let hydrate_index_page ~(index_page : Site.page) ~(header_component : Site.page)
 
 let clone_page (page : Site.page) : page = Soup.parse (Soup.to_string page)
 
-let generate_index_page ~(content_path : Filename.t) =
+let generate_index_page ~(content_path : Path.t) =
   let index_content_path =
-    Filename.concat content_path (Filename.of_parts [ "pages"; "index.md" ])
+    Path.join content_path (Path.from_parts [ "pages"; "index.md" ])
   in
   let content_component =
     generate_html_from_markdown
-      ~markdown_str:(index_content_path |> In_channel.read_all)
+      ~markdown_str:(index_content_path |> DiskIO.read_all)
     |> Soup.parse
   in
   let index_page_path =
-    Filename.concat content_path
-      (Filename.of_parts [ "templates"; "index.html" ])
+    Path.join content_path (Path.from_parts [ "templates"; "index.html" ])
   in
-  let index_page = index_page_path |> Core.In_channel.read_all |> Soup.parse in
+  let index_page = index_page_path |> DiskIO.read_all |> Soup.parse in
   let header_component = generate_header_component content_path in
   hydrate_index_page ~index_page ~header_component ~content_component;
   index_page
@@ -92,13 +90,13 @@ let post_path2 ~(title : string) =
        ((title |> String.lowercase |> Str.global_replace (Str.regexp " ") "-")
        ^ ".html"))
 
-let generate_post_components ~(content_path : Filename.t)
+let generate_post_components ~(content_path : Path.t)
     ~(metadata : Yojson.Basic.t) ~(post_component : Site.page)
     ~(header_component : Site.page) : post_with_preview =
   let preview =
-    In_channel.read_all
-      (Filename.concat content_path
-         (Filename.of_parts [ "templates"; "post-preview.html" ]))
+    DiskIO.read_all
+      (Path.join content_path
+         (Path.from_parts [ "templates"; "post-preview.html" ]))
     |> Soup.parse
   in
   let { title; created_at; summary } = parse_post_metadata ~metadata in
@@ -111,9 +109,8 @@ let generate_post_components ~(content_path : Filename.t)
   Soup.replace (preview $ "#summary") (Soup.create_text summary);
   Soup.set_attribute "href" post_path (preview $ "#post-link");
   let page =
-    In_channel.read_all
-      (Filename.concat content_path
-         (Filename.of_parts [ "templates"; "post.html" ]))
+    DiskIO.read_all
+      (Path.join content_path (Path.from_parts [ "templates"; "post.html" ]))
     |> Soup.parse
   in
   (* Fill the post page *)
@@ -121,32 +118,33 @@ let generate_post_components ~(content_path : Filename.t)
   Soup.replace (page $ "#blog-content") post_component;
   { preview; post = { title; page; path = post_path; path2 = path } }
 
-let generate_post_components_list ~(content_path : Filename.t)
+let generate_post_components_list ~(content_path : Path.t)
     ~(header_component : Site.page) : post_with_preview list =
   let pages_path =
-    Filename.concat content_path (Filename.of_parts [ "pages"; "posts" ])
+    Path.join content_path (Path.from_parts [ "pages"; "posts" ])
   in
-  let file_names = Sys_unix.readdir pages_path |> List.of_array in
+  let file_names = DiskIO.list pages_path in
   let file_names_before_ext =
     file_names
-    |> List.filter_map ~f:(fun file ->
+    |> List.filter_map ~f:(fun path ->
+           let file = Path.to_string path in
            let file_name_before_ext, ext = file |> Filename.split_extension in
            match ext with Some "md" -> Some file_name_before_ext | _ -> None)
   in
   let post_components_list =
     List.map file_names_before_ext ~f:(fun file_name_before_ext ->
         let metadata_path =
-          Filename.concat pages_path file_name_before_ext ^ ".json"
+          Path.join pages_path (Path.from (file_name_before_ext ^ ".json"))
         in
         let metadata =
-          metadata_path |> In_channel.read_all |> Yojson.Basic.from_string
+          metadata_path |> DiskIO.read_all |> Yojson.Basic.from_string
         in
         let post_path =
-          Filename.concat pages_path file_name_before_ext ^ ".md"
+          Path.join pages_path (Path.from (file_name_before_ext ^ ".md"))
         in
         let post_component =
           generate_html_from_markdown
-            ~markdown_str:(post_path |> In_channel.read_all)
+            ~markdown_str:(post_path |> DiskIO.read_all)
           |> Soup.parse
         in
         generate_post_components ~content_path ~metadata ~post_component
@@ -154,13 +152,12 @@ let generate_post_components_list ~(content_path : Filename.t)
   in
   post_components_list
 
-let generate_blog_page ~(content_path : Filename.t)
-    ~(header_component : Site.page) =
+let generate_blog_page ~(content_path : Path.t) ~(header_component : Site.page)
+    =
   let blog_page_path =
-    Filename.concat content_path
-      (Filename.of_parts [ "templates"; "blog.html" ])
+    Path.join content_path (Path.from_parts [ "templates"; "blog.html" ])
   in
-  let blog_page = blog_page_path |> In_channel.read_all |> Soup.parse in
+  let blog_page = blog_page_path |> DiskIO.read_all |> Soup.parse in
   let post_components_list =
     generate_post_components_list ~content_path ~header_component
   in
@@ -169,22 +166,21 @@ let generate_blog_page ~(content_path : Filename.t)
       (List.map post_components_list ~f:(fun { preview; _ } -> preview));
   blog_page
 
-let generate_posts ~(content_path : Filename.t) ~(header_component : Site.page)
-    =
+let generate_posts ~(content_path : Path.t) ~(header_component : Site.page) =
   let post_components_list =
     generate_post_components_list ~content_path ~header_component
   in
   List.map post_components_list ~f:(fun { post; _ } -> post)
 
-let generate_style ~(content_path : Filename.t) =
+let generate_style ~(content_path : Path.t) =
   let css_pico_path =
-    Filename.concat content_path
-      (Filename.of_parts [ "css"; "pico-1.5.10"; "css"; "pico.min.css" ])
+    Path.join content_path
+      (Path.from_parts [ "css"; "pico-1.5.10"; "css"; "pico.min.css" ])
   and css_custom_path =
-    Filename.concat content_path (Filename.of_parts [ "css"; "custom.css" ])
+    Path.join content_path (Path.from_parts [ "css"; "custom.css" ])
   in
-  let css_pico = In_channel.read_all css_pico_path
-  and css_custom = In_channel.read_all css_custom_path in
+  let css_pico = DiskIO.read_all css_pico_path
+  and css_custom = DiskIO.read_all css_custom_path in
   (* Concat all styles *)
   String.concat [ css_pico; css_custom ] ~sep:"\n"
 

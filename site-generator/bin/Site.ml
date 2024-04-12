@@ -6,6 +6,7 @@ module Path : sig
   type t
 
   val from : string -> t
+  val from_parts : string list -> t
   val parents : t -> t list
   val join : t -> t -> t
   val to_string : t -> string
@@ -20,6 +21,12 @@ end = struct
       |> List.filter ~f:(Fun.negate String.is_empty)
     in
     { parts; is_relative = not (Char.equal (String.get path 0) separator) }
+
+  let from_parts parts =
+    List.iter parts ~f:(fun path ->
+        if String.contains path separator then
+          failwith "Unexpected separator in file part");
+    { is_relative = true; parts }
 
   let join path1 path2 =
     if not path2.is_relative then failwith "Expected second path to be relative";

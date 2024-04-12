@@ -2,4 +2,4 @@
 
 open! Core
 
-val generate : content_path:Filename.t -> Site.t2
+val generate : content_path:Site.Path.t -> Site.t2

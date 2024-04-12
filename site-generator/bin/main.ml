@@ -1,6 +1,7 @@
 open Core
 
 let main content_path out_path =
+  let content_path = Site.Path.from content_path in
   let site = SiteGenerator.generate ~content_path in
   SiteDirectory.create ~site ~at:(Site.Path.from out_path)
 
