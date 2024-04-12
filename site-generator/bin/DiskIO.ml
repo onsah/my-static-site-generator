@@ -17,4 +17,6 @@ let write_all path ~content =
 
 (* User: read write execute, rest: only read *)
 let unix_file_permissions = 0o744
-let create_dir path = Core_unix.mkdir_p (Path.to_string path) ~perm:unix_file_permissions
+
+let create_dir path =
+  Core_unix.mkdir_p (Path.to_string path) ~perm:unix_file_permissions
