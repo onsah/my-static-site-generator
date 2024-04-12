@@ -118,6 +118,8 @@ let generate_post_components ~(content_path : Path.t)
   Soup.replace (page $ "#blog-content") post_component;
   Soup.replace (page $ "#post-title-header") 
     (Soup.create_element "h1" ~inner_text:title);
+  Soup.replace (page $ "#created-at")
+    (Soup.create_text (date_to_string created_at));
   { preview; post = { title; page; path = post_path; path2 = path } }
 
 let generate_post_components_list ~(content_path : Path.t)
