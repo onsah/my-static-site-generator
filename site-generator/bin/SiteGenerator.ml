@@ -191,21 +191,6 @@ let generate_style ~(content_path : Filename.t) =
   (* Concat all styles *)
   String.concat [ css_pico; css_custom ] ~sep:"\n"
 
-(* def generate( { content_path, a, b } ):
-     obj.content_path *)
-let generate { content_path } =
-  let header_component = generate_header_component content_path in
-  {
-    index_page = generate_index_page ~content_path;
-    blog_page =
-      generate_blog_page ~content_path
-        ~header_component:(clone_page header_component);
-    style = generate_style ~content_path;
-    posts =
-      generate_posts ~content_path
-        ~header_component:(clone_page header_component);
-  }
-
 let generate2 { content_path } =
   let header_component = generate_header_component content_path in
   let index_file =
