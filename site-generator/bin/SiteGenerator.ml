@@ -116,6 +116,8 @@ let generate_post_components ~(content_path : Path.t)
   (* Fill the post page *)
   Soup.replace (page $ "#header") header_component;
   Soup.replace (page $ "#blog-content") post_component;
+  Soup.replace (page $ "#post-title-header") 
+    (Soup.create_element "h1" ~inner_text:title);
   { preview; post = { title; page; path = post_path; path2 = path } }
 
 let generate_post_components_list ~(content_path : Path.t)
