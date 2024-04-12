@@ -2,8 +2,6 @@ open Core
 
 let sprintf = Printf.sprintf
 
-type site_directory2 = { out : Site.Path.t }
-
 let create_directory_if_not_exists (path : Site.Path.t) =
   let path_str = Site.Path.to_string path in
   match DiskIO.get_type path with
@@ -25,8 +23,8 @@ let write_file (file : Site.output_file) ~(out : Site.Path.t) =
   List.iter (Path.parents file_absolute_path) ~f:create_directory_if_not_exists;
   DiskIO.write_all file_absolute_path ~content:file.content
 
-let create2 { out } ~(site : Site.t2) =
-  printf "out: %s\n" (Site.Path.to_string out);
-  create_directory_if_not_exists out;
-  List.iter site.output_files ~f:(write_file ~out);
+let create ~(site : Site.t2) ~at =
+  printf "out: %s\n" (Site.Path.to_string at);
+  create_directory_if_not_exists at;
+  List.iter site.output_files ~f:(write_file ~out:at);
   ()

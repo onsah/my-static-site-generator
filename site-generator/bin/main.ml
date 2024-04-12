@@ -3,7 +3,7 @@ open Core
 let main content_path out_path =
   let site_generator = SiteGenerator.make ~content_path in
   let site = SiteGenerator.generate2 site_generator in
-  SiteDirectory.create2 { out = Site.Path.from out_path } ~site
+  SiteDirectory.create ~site ~at:(Site.Path.from out_path)
 
 let command =
   let content_path =
