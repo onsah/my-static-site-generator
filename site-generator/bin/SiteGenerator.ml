@@ -5,10 +5,7 @@ let ( $ ) = Soup.( $ )
 
 open Site
 
-type site_generator = { content_path : Filename.t }
 type post_with_preview = { preview : Site.page; post : Site.post }
-
-let make ~content_path = { content_path }
 
 let generate_html_from_markdown ~markdown_str =
   let markdown = Omd.of_string markdown_str in
@@ -191,7 +188,7 @@ let generate_style ~(content_path : Filename.t) =
   (* Concat all styles *)
   String.concat [ css_pico; css_custom ] ~sep:"\n"
 
-let generate2 { content_path } =
+let generate ~content_path =
   let header_component = generate_header_component content_path in
   let index_file =
     {
