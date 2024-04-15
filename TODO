@@ -1,9 +1,6 @@
-* Theme
+* Code block support
+* Inline code theming
 * Picture
-* Templating
-    * Last Updated Date
-* Link to posts from Blog page
-* Post page
 * Favorite Projects Section
 * Documentation
 * Auto install Nix if doesn't exist
