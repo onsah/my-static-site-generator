@@ -7,15 +7,21 @@ open Site
 
 type post_with_preview = { preview : Site.page; post : Site.post }
 
+type current_section = Me | Blog
+
 let generate_html_from_markdown ~markdown_str =
   let markdown = Omd.of_string markdown_str in
   Omd.to_html markdown
 
-let generate_header_component (content_path : Path.t) =
+let generate_header_component (content_path : Path.t) ~(current_section : current_section) =
   let path =
     Path.join content_path (Path.from_parts [ "templates"; "header.html" ])
   in
-  path |> DiskIO.read_all |> Soup.parse
+  let header_component = path |> DiskIO.read_all |> Soup.parse in
+  (match current_section with
+  | Blog -> Soup.add_class "current" (header_component $ "#blog")
+  | Me -> Soup.add_class "current" (header_component $ "#me"));
+  header_component
 
 let hydrate_index_page ~(index_page : Site.page) ~(header_component : Site.page)
     ~(content_component : Site.page) =
@@ -37,7 +43,7 @@ let generate_index_page ~(content_path : Path.t) =
     Path.join content_path (Path.from_parts [ "templates"; "index.html" ])
   in
   let index_page = index_page_path |> DiskIO.read_all |> Soup.parse in
-  let header_component = generate_header_component content_path in
+  let header_component = generate_header_component content_path ~current_section:Me in
   hydrate_index_page ~index_page ~header_component ~content_component;
   index_page
 
@@ -190,7 +196,7 @@ let generate_style ~(content_path : Path.t) =
   String.concat [ css_pico; css_custom ] ~sep:"\n"
 
 let generate ~content_path =
-  let header_component = generate_header_component content_path in
+  let header_component = generate_header_component content_path ~current_section:Blog in
   let index_file =
     {
       content = generate_index_page ~content_path |> Soup.to_string;
