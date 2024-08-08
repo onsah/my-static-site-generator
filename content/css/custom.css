@@ -35,6 +35,10 @@ main.container {
     }
 }
 
+pre {
+    overflow: visible;
+}
+
 header {
     display: flex;
     justify-content: center;
