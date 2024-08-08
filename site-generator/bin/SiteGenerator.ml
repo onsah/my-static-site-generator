@@ -116,7 +116,8 @@ let generate_post_components ~(content_path : Path.t)
   (* Fill the post page *)
   Soup.replace (page $ "#header") header_component;
   Soup.replace (page $ "#blog-content") post_component;
-  Soup.replace (page $ "#post-title-header") 
+  Soup.replace
+    (page $ "#post-title-header")
     (Soup.create_element "h1" ~inner_text:title);
   Soup.replace (page $ "#created-at")
     (Soup.create_text (date_to_string created_at));
@@ -179,7 +180,7 @@ let generate_posts ~(content_path : Path.t) ~(header_component : Site.page) =
 let generate_style ~(content_path : Path.t) =
   let css_pico_path =
     Path.join content_path
-      (Path.from_parts [ "css"; "pico-1.5.10"; "css"; "pico.min.css" ])
+      (Path.from_parts [ "css"; "simple.css" ])
   and css_custom_path =
     Path.join content_path (Path.from_parts [ "css"; "custom.css" ])
   in

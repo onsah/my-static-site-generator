@@ -1,13 +1,4 @@
 :root:not([data-theme]) {
-    --background-color: #2B232B;
-    --background-color-bright: #201213;
-    --h1-color: #E2E2E2;
-    --h2-color: #E2E2E2;
-    --color: #E2E2E2;
-    --primary: #c5545a;
-    --primary-hover: #E74D28;
-    --primary-focus: #c25b6092;
-    --card-background-color: #4b1e21;
     --max-content-width: 1130px;
 }
 
@@ -26,7 +17,6 @@ html, body {
 body {
     overflow: hidden;
     display: flex;
-    align-items: center;
     flex-direction: column;
 }
 
@@ -45,19 +35,12 @@ main.container {
     }
 }
 
-#posts > :nth-child(1) {
-    margin-top: 0;
+header {
+    display: flex;
+    justify-content: center;
 }
 
-nav {
-    background-color: var(--background-color-bright);
-    width: 100%;
-    align-content: start;
-
-    > .container {
-        max-width: var(--max-content-width);
-        padding-left: 2rem;
-        padding-right: 2rem;
-        box-sizing: content-box;
-    }
+header > nav {
+    display: flex;
+    width: var(--max-content-width);
 }
