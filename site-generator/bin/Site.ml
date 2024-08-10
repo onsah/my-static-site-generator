@@ -73,11 +73,4 @@ type post = {
   page : page;
 }
 
-type t = {
-  index_page : page;
-  blog_page : page;
-  style : string;  (** CSS file *)
-  posts : post list;
-}
-
 type t2 = { output_files : output_file list }
