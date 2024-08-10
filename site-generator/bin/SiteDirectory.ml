@@ -23,7 +23,7 @@ let write_file (file : Site.output_file) ~(out : Site.Path.t) =
   List.iter (Path.parents file_absolute_path) ~f:create_directory_if_not_exists;
   DiskIO.write_all file_absolute_path ~content:file.content
 
-let create ~(site : Site.t2) ~at =
+let create ~(site : Site.t) ~at =
   printf "out: %s\n" (Site.Path.to_string at);
   create_directory_if_not_exists at;
   List.iter site.output_files ~f:(write_file ~out:at);

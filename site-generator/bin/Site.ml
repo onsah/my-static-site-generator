@@ -73,4 +73,4 @@ type post = {
   page : page;
 }
 
-type t2 = { output_files : output_file list }
+type t = { output_files : output_file list }
