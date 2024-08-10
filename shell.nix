@@ -1,5 +1,5 @@
 # Assumes, there is a channel called 'nixpkgs', see https://nixos.wiki/wiki/Nix_channels
-{ pkgs ? import <nixpkgs> {} }:
+{ pkgs ? import (builtins.fetchTarball "https://github.com/nixos/nixpkgs/archive/f5129fb42b9c262318130a97b47516946da3e7d7.tar.gz") {} }:
 pkgs.mkShell {
 	buildInputs = with pkgs; [
 		# Package goes there
