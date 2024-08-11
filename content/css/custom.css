@@ -39,10 +39,9 @@ pre {
     overflow: visible;
 }
 
-header {
+body > header {
     display: flex;
     justify-content: center;
-    align-items: center;
 }
 
 nav > .title {
