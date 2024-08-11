@@ -1,6 +1,7 @@
-open! Core
 (** 
-    Module for creating the static site directory    
+    Creates the static site directory at the location `at`.
 *)
+
+open! Core
 
 val create : site:Site.t -> at:Site.Path.t -> unit

@@ -1,4 +1,4 @@
-(** Generates the HTML files for the given content *)
+(** Generates files for the website. Doesn't perform any side effect. *)
 
 open! Core
 
