@@ -1,4 +1,3 @@
 _build/
 .direnv/
 dist/
-./site-generator/result
