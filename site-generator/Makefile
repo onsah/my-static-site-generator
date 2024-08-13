@@ -1,6 +1,8 @@
 content_path = $$PROJECT_ROOT/content/
 dist_path = $$PROJECT_ROOT/dist/
 
+.DEFAULT_GOAL := build
+
 .PHONY: test
 
 build:
