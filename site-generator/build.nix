@@ -1,3 +1,5 @@
+# See: https://wiki.nixos.org/wiki/OCaml
+
 {
   stdenv,
   lib,
@@ -5,7 +7,6 @@
   ocaml,
   ocamlPackages,
 }:
-# See: https://wiki.nixos.org/wiki/OCaml
 let
   fileset = lib.fileset;
 in
