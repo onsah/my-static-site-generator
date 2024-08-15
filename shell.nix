@@ -4,5 +4,6 @@
 }:
 let
   pkgs = import sources.nixpkgs { inherit system; };
+  website-generator-shell = pkgs.callPackage ./site-generator/shell-template.nix {};
 in
-pkgs.callPackage ./site-generator/shell.nix {}
+website-generator-shell
