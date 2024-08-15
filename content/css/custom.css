@@ -73,3 +73,15 @@ header > nav {
     display: flex;
     width: var(--max-content-width);
 }
+
+#posts {
+    margin-top: 1.5rem;
+}
+
+hgroup > h3 {
+    margin-bottom: 0;
+}
+
+hgroup > h4 {
+    margin-top: 0;
+}

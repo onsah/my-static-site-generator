@@ -117,16 +117,18 @@ body > footer {
 /* Format headers */
 h1 {
   font-size: 3rem;
+  margin-bottom: 0;
 }
 
 h2 {
   font-size: 2.6rem;
-  margin-top: 3rem;
+  margin-top: 2rem;
+  margin-bottom: 0;
 }
 
 h3 {
   font-size: 2rem;
-  margin-top: 3rem;
+  margin-top: 2rem;
 }
 
 h4 {
@@ -142,7 +144,7 @@ h6 {
 }
 
 p {
-  margin: 1.5rem 0;
+  margin: 1rem 0 0 0;
 }
 
 /* Prevent long strings from overflowing container */
@@ -340,7 +342,7 @@ article h2:first-child,
 section h2:first-child,
 article h3:first-child,
 section h3:first-child {
-  margin-top: 1rem;
+  margin-top: 0;
 }
 
 section {
@@ -704,4 +706,8 @@ sub {
   border-radius: var(--standard-border-radius);
   padding: 1.5rem;
   margin: 2rem 0;
+}
+
+ul {
+  margin-top: 0.4rem;
 }
