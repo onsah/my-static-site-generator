@@ -15,7 +15,7 @@ stdenv.mkDerivation {
   src = fileset.toSource {
     root = ./.;
     fileset = let
-      ocamlFiles  = 
+      ocamlFiles  =
         (fileset.fileFilter
           (file: file.hasExt "ml" || file.hasExt "mli")
           ./bin);
@@ -35,12 +35,12 @@ stdenv.mkDerivation {
 
   buildInputs = [
     ocaml
-		dune_3
+	dune_3
     ocamlPackages.findlib
-		ocamlPackages.lambdasoup
-		ocamlPackages.omd
-		ocamlPackages.yojson
-		ocamlPackages.core_unix
+	ocamlPackages.lambdasoup
+	ocamlPackages.omd
+	ocamlPackages.yojson
+	ocamlPackages.core_unix
   ];
 
   installPhase = ''
