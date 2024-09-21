@@ -1,6 +1,5 @@
 {
-    "title": "Writing My Own Static Site Generator in OCaml",
-    "summary": "Hi, this is my first ever blog post and of course like everyone else I am just making my own a static site generator so that I have something to write about for my blog. Programmers love inventing the wheel just for the sake of it.",
-    "created-at": "2023-11-24",
-    "last-modified-at": "2023-11-24"
+  "title": "Writing My Own Static Site Generator in OCaml",
+  "created-at": "2023-11-24",
+  "last-modified-at": "2024-09-21s"
 }

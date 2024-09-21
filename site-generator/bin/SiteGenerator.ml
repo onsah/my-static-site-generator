@@ -57,7 +57,7 @@ let hydrate_blog_page ~(blog_page : Site.page) ~(header_component : Site.page)
          Soup.append_child (blog_page $ "#posts") preview));
   ()
 
-type post_metadata = { title : string; created_at : Date.t; summary : string }
+type post_metadata = { title : string; created_at : Date.t }
 
 let parse_post_metadata ~(metadata : Yojson.Basic.t) : post_metadata =
   let extract_string_field ~fields ~field_name =
@@ -78,8 +78,7 @@ let parse_post_metadata ~(metadata : Yojson.Basic.t) : post_metadata =
       let created_at =
         extract_string_field ~fields ~field_name:"created-at" |> Date.of_string
       in
-      let summary = extract_string_field ~fields ~field_name:"summary" in
-      { title; created_at; summary }
+      { title; created_at }
   | _ -> raise (Invalid_argument "Expected json object")
 
 let date_to_string date =
@@ -98,6 +97,11 @@ let post_path2 ~(title : string) =
        ((title |> String.lowercase |> Str.global_replace (Str.regexp " ") "-")
        ^ ".html"))
 
+let extract_summary ~post_component =
+  let component_text = post_component |> Soup.texts |> String.concat in
+  let text_split = component_text |> String.split ~on:'.' in
+  List.take text_split 3 @ [ "" ] |> String.concat ~sep:"."
+
 let generate_post_components ~(content_path : Path.t)
     ~(metadata : Yojson.Basic.t) ~(post_component : Site.page)
     ~(header_component : Site.page) : post_with_preview =
@@ -107,7 +111,8 @@ let generate_post_components ~(content_path : Path.t)
          (Path.from_parts [ "templates"; "post-preview.html" ]))
     |> Soup.parse
   in
-  let { title; created_at; summary } = parse_post_metadata ~metadata in
+  let { title; created_at; _ } = parse_post_metadata ~metadata in
+  let summary = extract_summary ~post_component in
   let post_path = post_path ~title in
   let path = post_path2 ~title in
   (* Fill the preview component *)
