@@ -36,9 +36,24 @@ main.container {
     }
 }
 
+/* BEGIN code blocks
+   This section makes codes blocks vertically expand while horizontally scroll.
+*/
 pre {
     overflow: visible;
 }
+
+pre code {
+    /* Normally code blocks has inline display mode
+       so that it is aligned left-to-right.
+       That messes up with the overflow setting because
+       they are for top-to-bottom.
+    */
+    display: block;
+    overflow-x: auto;
+}
+
+/* END code blocks */
 
 body > header {
     display: flex;
