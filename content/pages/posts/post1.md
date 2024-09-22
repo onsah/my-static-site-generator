@@ -1,7 +1,7 @@
 Hello world! This is my first blog post.
 
 For a while I wanted to start blogging about programming and writing my own blog engine seemed like a good idea to keep it interesting.
-While keeping me interested part working as intended, I think I could have published my first post a lot more earlier if I used an existing blog engine. But it's like scripting, doing a task manually sometimes shorter than writing a script for it, but programmers still choose scripting. Also I like the idea of being familiar with the every stack of my projects. Nowadays, it's rare to work without frameworks or libraries that abstract over the basic primitives (not that this a bad thing) especially in the web development setting. I thought it would be interesting if I learned web frontend fundamentals from scratch.
+While keeping me interested part working as intended, I think I could have published my first post a lot more earlier if I used an existing blog engine. But it's like scripting, doing a task manually sometimes shorter than writing a script for it, but programmers still choose scripting. Also I like the idea of being familiar with the every stack of my projects. Nowadays, it's rare to work without frameworks or libraries that abstract over the basic primitives (not that this a bad thing) especially in the web development setting. I thought it would be interesting if I learned web frontend fundamentals from scratch. Thanks to [Uğur](https://www.rugu.dev) for helping me with HTML/CSS.
 
 If you would like to check out the source code, the repository is [here](https://github.com/onsah/my-static-site-generator).
 
