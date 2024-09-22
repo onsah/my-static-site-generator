@@ -26,23 +26,32 @@ I wanted to try the language in a realistic setting to see how this language wor
 * `site-generator`: OCaml program that generates the website.
 
 `content` folder contains three subfolders:
-* `templates`: Html templates for components and pages.
-* `pages`: The content for pages such as 'about me' and blog posts. Each post has a metadata json file and a markdown file containing the actual content.
+* `templates`: HTML templates for components and pages.
+* `pages`: The content for pages such as 'about me' and blog posts. For each post, there is a `.json` file (metadata) and a `.md` (content) with the same name before the extension.
 * `css`: As the name implies this contains the css files.
 
-The static site generator generates a simple html website.
-Basically, it takes each post content in markdown form and converts it to html. 
+The static site generator generates a static HTML website.
+Basically, it takes each post content in markdown form and converts it to HTML. 
 Then it instantiates the blog post template with the post content.
 
-Site generator has the following properties:
+### Tech Stack
+I use the following tech stack:
 * For the build system I chose [dune](https://dune.build/) which is the de-facto build system for OCaml.
 * Instead of the default standard library, I use [Core](https://opensource.janestreet.com/core/) because it contains more functionality and it was used in [Real World OCaml](https://dev.realworldocaml.org/) book that I read. 
-* For html manipulation I use [Lambda soup](https://ocaml.org/p/lambdasoup/latest) library.
-* The markdown files are converted to html using [omd](https://ocaml.org/p/omd/latest).
+* For HTML manipulation I use [Lambda soup](https://ocaml.org/p/lambdasoup/latest) library.
+* The markdown files are converted to HTML using [omd](https://ocaml.org/p/omd/latest).
 * The post metadata is stored in json files, to parse them I use [yojson](https://ocaml.org/p/yojson/latest). Though I would prefer to have them as [YAML Front Matter](https://jekyllrb.com/docs/front-matter/), I couldn't find a library for it and didn't want to spend time implementing myself. Maybe in the future I can work on that.
+* CLI interface is implemented using [core_unix](https://ocaml.org/p/core_unix/latest/doc/index.html).
 
-Unfortunately while OCaml ecosystem is active it's nowhere near the more mainstream languages in terms of library support.
+Unfortunately while OCaml ecosystem is active it's worse than mainstream languages in terms of library support.
 You may be dissapointed if you expect to find a library for everything.
+
+### Code Structure
+The project mainly organized by [Modules](#modules).
+* `main`: Programs entry point. 
+* `DiskIO`: Wraps the disk related functionality so underlying IO library can be changed easily. All actual IO functionality is constrained here.
+* `SiteGenerator`: Reads the content and generates the website files but doesn't actually write them.
+* `SiteDirectory`: Writes generated website files into disk.
 
 ## Templating
 The templating functionality is very simple, it basically finds the appropriate element with the element id than replaces it with the actual content. For example, in posts page:
