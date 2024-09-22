@@ -29,6 +29,7 @@ main.container {
     align-items: center;
     padding-left: 2rem;
     padding-right: 2rem;
+    padding-bottom: 3rem;
 
     > * {
         max-width: var(--max-content-width);
