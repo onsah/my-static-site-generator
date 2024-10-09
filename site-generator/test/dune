@@ -1,3 +1,0 @@
-(test
- (name my_static_site_generator)
- (libraries ounit2 core))
