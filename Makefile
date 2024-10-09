@@ -1,11 +1,13 @@
 content_path = $$PROJECT_ROOT/content/
 dist_path = $$PROJECT_ROOT/dist/
+website_generator_path = website-generator-result
+website_path = website-result
 
 build: format
-	$(MAKE) -C site-generator build
+	nix-build -A website-generator --out-link $(website_generator_path)
 
-help:
-	$(MAKE) -C site-generator help
+help: build
+	$(website_generator_path)/bin/website-generator -help
 
 format:
 	$(MAKE) -C site-generator format
@@ -16,8 +18,8 @@ test:
 repl:
 	$(MAKE) -C site-generator repl
 
-generate: build
-	site-generator/_build/default/bin/main.exe --content-path $(content_path) --out-path $(dist_path)
+generate:
+	nix-build -A website --out-link $(website_path)
 
 serve: generate
-	miniserve $(dist_path) --index index.html
+	miniserve $(website_path)/dist --index index.html --port 9090

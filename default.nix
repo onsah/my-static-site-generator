@@ -5,4 +5,7 @@
 let
   pkgs = import sources.nixpkgs { inherit system; };
 in
-pkgs.callPackage ./build.nix {}
+{
+  website = pkgs.callPackage ./build.nix {};
+  website-generator = pkgs.callPackage ./site-generator/build.nix {  };
+}

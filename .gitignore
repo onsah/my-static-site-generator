@@ -1,3 +1,5 @@
 _build/
 .direnv/
 dist/
+website-generator-result/
+website-result/

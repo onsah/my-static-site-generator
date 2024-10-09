@@ -5,9 +5,6 @@
 build:
 	dune build
 
-help:
-	dune exec bin/main.exe -- -help
-
 format:
 	dune fmt
 
