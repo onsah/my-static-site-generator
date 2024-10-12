@@ -3,6 +3,7 @@
   mkShell,
   ocamlPackages,
   miniserve,
+  nushell,
 }:
 
 mkShell {
@@ -15,6 +16,7 @@ mkShell {
     ocamlPackages.utop
     ocamlPackages.ocamlformat
     miniserve
+    nushell
   ];
 
   shellHook = ''
