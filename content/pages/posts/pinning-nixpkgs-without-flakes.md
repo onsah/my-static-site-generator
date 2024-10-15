@@ -1,16 +1,53 @@
-[Nix Channels]() is probably one of the most controversial parts of the [Nix](). While Nix claims to be fully reproducible, usually non [Flake]() Nix derivations implicitly refers to a [nixpkgs]() usually through a channel. This breaks the reproducibility promise because the version of nixpkgs depends on the environment that the derivation is being built.
+[Nix Channels](https://zero-to-nix.com/concepts/channels) is probably one of the most controversial parts of the [Nix](https://wiki.nixos.org/wiki/Nix_package_manager). While Nix claims to be fully reproducible, Nix [derivations](https://wiki.nixos.org/wiki/Derivations) implicitly refer to a [nixpkgs](https://wiki.nixos.org/wiki/Nixpkgs) usually through a channel. This breaks the reproducibility promise because the version of nixpkgs depends on the environment that the derivation is being built.
 
-In this post I will show how you can get rid of channels and pin your nixpkgs for your derivations, [shells](), [NixOS configuration]() and [home manager configurations]().
+One popular alternative for the traditional Nix derivations is to use flakes. There are even efforts to [stabilize them for a long time](https://discourse.nixos.org/t/an-incremental-strategy-for-stabilizing-flakes/16323). However, they are a whole new approach and requires some learning for a traditional Nix user. Moreover, they are still experimental so the API is subject to change in the future.
 
-## Nix Channel Background
-Nix Channels are essentially URLs that point to a nixpkgs[^1]. Conventionally there are certain channels which are listed [here](https://status.nixos.org/). They are like package indexes in other package managers like [dnf]() and [apt](). So essentially they allow conveniently updating all installed packages like one does in traditional package managers. Furthermore, having a global version of a dependency is also beneficial for caching purposes, because packages we use that may depend on the same package depend on the same version, so we don't end up with many versions of the dependency with slight differences.
+In this post I will show how you can get rid of channels but still use the traditional nix derivations and pin your nixpkgs for your derivations, [shells](https://wiki.nixos.org/wiki/Development_environment_with_nix-shell), [NixOS configuration](https://nix.dev/tutorials/nix-language.html#nixos-configuration) and [home manager configurations](https://nix-community.github.io/home-manager/index.xhtml#sec-usage-configuration). In the end you will end up with a setting where nixpkgs version is managed via plain text and can easily be updated when desired.
 
-But of course it's not all good. First problem is, having a global version for every dependency makes it hard if we really want multiple different versions of the same package. For example it's not uncommon that one wants multiple versions of JDK installed at the same time. For this, nixpkgs have conventions that exposes several different major versions (for example JDK has many versions such as [jdk8](https://search.nixos.org/packages?channel=unstable&show=jdk8&from=0&size=50&sort=relevance&type=packages&query=jdk) and [jdk17](https://search.nixos.org/packages?channel=unstable&show=jdk17&from=0&size=50&sort=relevance&type=packages&query=jdk)) which solves this issue for many cases but it's still sometimes annoying. Second problem is exact version of the nixpkgs that is used is not specified in the [derivation](). If someone tries to build your Nix Derivation couple years later it may not build because the channel is updated with breaking changes.
+## The Problem
+Conventional nix shells contain code snippet similar to the following:
+```nix
+let pkgs = import <nixpkgs> {}; in
+pkgs.mkShell {
+  # ...
+}
+```
 
-We can't really fix the first problem with the traditional Nix. I believe that it's an inherent trade-off between space usage and preciseness. But fortunately we can solve the second problem using [npins]() to pin nixpkgs we want to use. Therefore ensuring reproducibility and improving the UX.
+You may wonder, what does `<nixpkgs>` mean in this code?. This syntax is called "lookup path"[^2]. When you write a name in angle brackets, it's matched with the corresponding key-value pair in `NIX_PATH` environment variable. The value is typically a Nix channel.
+
+Nix Channels are essentially URLs that point to a nixpkgs[^1]. Conventionally there are certain channels which are listed [here](https://status.nixos.org/). The exact contents of a channel are updated regularly. So they act like package indices which can be found in other traditional package managers. Having a package index has several benefits. First, they allow conveniently updating all installed packages like one does in traditional package managers. Furthermore, having a global version of a dependency is also beneficial for caching purposes, because packages we use that may depend on the same package depend on the same version, so we don't end up with many versions of the dependency with slight differences.
+
+But of course it's not all good. First problem is, having a global version for every dependency makes it hard if we really want multiple different versions of the same package. For example it's not uncommon that one wants multiple versions of JDK installed at the same time. For this, nixpkgs have conventions that exposes several different major versions (for example JDK has many versions such as [jdk8](https://search.nixos.org/packages?channel=unstable&show=jdk8&from=0&size=50&sort=relevance&type=packages&query=jdk) and [jdk17](https://search.nixos.org/packages?channel=unstable&show=jdk17&from=0&size=50&sort=relevance&type=packages&query=jdk)) which solves this issue for many cases but it's still sometimes not enough. Second problem is exact version of the nixpkgs is not specified in the Nix derivation. If someone tries to build your Nix Derivation couple years later it may not build because the channel is updated with breaking changes. This is a really bad UX, because a channel url says nothing about actual version of nixpkgs being returned. For example, if `NIX_PATH` environment variable is set to `nixpkgs-unstable=nixos-24.05`, `<nixpkgs-unstable>` will refer to the NixOS 24.05 stable branch! This can be very unintuitive. Or worse, many use `<nixpkgs>` channel for their default channel but some set it to a stable and others to an unstable channel. Reader has no idea which version `<nixpkgs>` is meant to refer. Also, the exact contents of the channel url changes over time which means that the derivation may get broken in the future.
+
+We can't really fix the first problem with the traditional Nix. I believe that it's an inherent trade-off between space usage and preciseness. But fortunately we can solve the second problem. Therefore ensuring reproducibility and improving the UX.
+
+In order to fix this issue, we have the following options:
+1. Don't use `<nixpkgs>` expressions in the code.
+2. Keep `<nixpkgs>` but change `NIX_PATH` variable to refer to a specific version of nixpkgs instead of a channel.
+
+We will use both options depending on the use case. But first we need to introduce a new tool.
+
+## First Attempt at a Solution
+As I have described above, the problematic line is:
+```nix
+let pkgs = import <nixpkgs> {}; in
+```
+
+We already know that `<nixpkgs>` is supposed return a version of nixpkgs. So one simple solution could be to download a specific commit of nixpkgs instead of using channels via lookup paths. Is this possible?
+
+Yes, fortunately it is possible. The nixpkgs repository is [hosted at GitHub](https://github.com/NixOS/nixpkgs). GitHub has a nice feature that allowing [downloading the source archive of any commit](https://docs.github.com/en/repositories/working-with-files/using-files/downloading-source-code-archives#source-code-archive-urls). Nix has a builtin called [fetchTarball](https://nix.dev/manual/nix/2.18/language/builtins.html?#builtins-fetchTarball) which, as the name suggests, downloads a tarball and returns it's Nix store path. With this knowledge, we can instead write:
+```nix
+let pkgs = import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/$COMMIT_HASH.tar.gz") {}; in
+```
+
+This solves the reproducibility issue. So can we know stop and be happy?
+
+Unfortunately not, we have achieved perfect reproducibility. However, how do we update nixpkgs version if we want to? Our current option is to go to nixpkgs repository and pick the latest commit then copy-paste it. But if we have a lot of shell configurations this can easily get very tedious. Can we automate the process a bit?
+
+Well we can. Enter npins.
 
 ## Npins
-Npins is a tool that allows "pinning" to a snapshot of the nixpkgs. The version is stored in a text file, therefore you can easily add it to version control. It also lets you conveniently update the version when you want, no manual text editing is required. It's available in nixpkgs with the name [npins](https://search.nixos.org/packages?channel=24.05&show=npins&from=0&size=50&sort=relevance&type=packages&query=npins).
+[Npins](https://github.com/andir/npins) is a tool that allows "pinning" a specific commit of the nixpkgs in nix derivations. The version is stored in a text file, therefore you can easily add it to version control. It also lets you conveniently update the version when you want, no manual text editing is required. It's available in nixpkgs with the name [npins](https://search.nixos.org/packages?channel=24.05&show=npins&from=0&size=50&sort=relevance&type=packages&query=npins).
 
 Once you have it installed, you need to initialize it in the directory you want to use:
 ```bash
@@ -22,9 +59,9 @@ Adding nixpkgs can be done with:
 ```bash
 npins add github nixos $NIXPKGS_NAME --branch $NIXPKGS_BRANCH
 ```
-Where `$NIXPKGS_BRANCH` can be a [Nix Channel](https://wiki.nixos.org/wiki/Channel_branches) name. `$NIXPKGS_NAME` is the name of nixpkgs. This is necessary because npins lets you pin multiple nixpkgs in the same repository, so you need to give them names.
+Where `$NIXPKGS_BRANCH` can be a [Nix Channel](https://wiki.nixos.org/wiki/Channel_branches) name. `$NIXPKGS_NAME` is the name of nixpkgs. This is necessary because npins lets you pin multiple nixpkgs in the same repository.
 
-After having nixpkgs pinned, it can be used in nix derivations as:
+After having nixpkgs pinned, it can be used in nix derivations as following:
 ```nix
 {
   system ? builtins.currentSystem,
@@ -38,9 +75,9 @@ in
 `sources` contains the pinned nixpkgs, the name you gave above becomes an attribute in `sources` to access. So if you have the name `foo`, you would get nixpks by `import sources.foo {}`.
 
 ## Packaging & Shell
-One good use case for npins is pinning the nixpkgs for [Nix Shell](). So a new user can just pull the project and enter into the appropriate environment without worrying about having the correct version of nixpkgs.
+As I have shown above, nix shell configurations utilize `<nixpkgs>` syntax, which is the main deal breaker for reproducibility. Therefore the solution is to import nixpkgs from `sources` provided via npins.
 
-I use the following pattern:
+I use the following template:
 - `nix/shell.nix` : Contains the actual shell configuration which should be built with [callPackage](). Example:
 ```nix
 {
@@ -52,7 +89,7 @@ mkShell {
   # Shell configuration...
 }
 ```
-- `shell.nix` : Calls `nix/shell.nix` with the pinned nixpkgs. For example if we have pinned nixpkgs with name `nixpkgs`:
+- `shell.nix` : Calls `nix/shell.nix` with the pinned nixpkgs. For example if we have nixpkgs with name `nixpkgs`:
 ```nix
 {
   system ? builtins.currentSystem,
@@ -71,10 +108,10 @@ With `direnv` installed, I have the following `.envrc` file:
 ```direnv
 use nix
 ```
-Which is all I need.
+Which is all we need.
 
 ## NixOS configuration
-NixOS system configuration depends on `NIX_PATH` environment variable to point to `nixpkgs`, which is then used to interpret `configuration.nix` file. It kind of creates a loop if you want to declare `NIX_PATH` inside `configuration.nix` because in order to interpret `configuration.nix` you first need to determine the location of `nixpkgs` which is only available after `NIX_PATH` is set. So this way of managing requires to run `nixos-rebuild` twice to actually take effect. I think this is not a good UX. Fortunately, we can use write a script that passes the appropriate `NIX_PATH` to `nixos-rebuild`. In order to prevent incorrect usage, `NIX_PATH` shouldn't be set by default.
+It's harder to pin nixpkgs for NixOS configurations, because while nix shells explicitly refer to nixpkgs value they use NixOS configurations always depend on `NIX_PATH` environment variable to point to `nixpkgs`, which is then used to interpret `configuration.nix` file. It kind of creates a loop if you want to declare `NIX_PATH` inside `configuration.nix` because in order to interpret `configuration.nix` you first need to determine the location of `nixpkgs` which is only available after `NIX_PATH` is set. So this way of managing requires to run `nixos-rebuild` twice to actually take effect. I think this is not a good UX. Fortunately, we can use write a script that passes the appropriate `NIX_PATH` to `nixos-rebuild`. In order to prevent incorrect usage, `NIX_PATH` shouldn't be set by default.
 
 I use the following [Nu]() script for this:
 ```nu
@@ -133,8 +170,9 @@ home-manager $command -f $HOME_MANAGER_PATH
 ```
 
 ## Conlusion
-If have come this far, thank you. Nix has very good experience overall, but also has some incredibly problematic parts in terms of UX. With pinning nixpkgs using `npins` you can improve this one specific issue.
+If you have come this far, thank you for giving your time. Nix has a very good experience overall, but also has some incredibly bad UX issues. With pinning nixpkgs using `npins` you can improve this one specific issue.
 
 Credits: This post is heavily inspired by https://jade.fyi/blog/pinning-nixos-with-npins/
 
 [^1]: https://zero-to-nix.com/concepts/channels
+[^2]: https://nix.dev/tutorials/nix-language#lookup-path-tutorial
