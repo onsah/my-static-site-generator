@@ -47,7 +47,7 @@ Unfortunately not, we have achieved perfect reproducibility. However, how do we 
 Well we can. Enter npins.
 
 ## Npins
-[Npins](https://github.com/andir/npins) is a tool that allows "pinning" a specific commit of the nixpkgs in nix derivations. The version is stored in a text file, therefore you can easily add it to version control. It also lets you conveniently update the version when you want, no manual text editing is required. It's available in nixpkgs with the name [npins](https://search.nixos.org/packages?channel=24.05&show=npins&from=0&size=50&sort=relevance&type=packages&query=npins).
+[Npins](https://github.com/andir/npins) is a tool that allows "pinning" a specific commit of the nixpkgs in nix derivations. The version is stored in a text file, therefore you can easily add it to version control. It also lets you conveniently update the version when you want, no manual text editing is required. It's [available in nixpkgs](https://search.nixos.org/packages?channel=24.05&show=npins&from=0&size=50&sort=relevance&type=packages&query=npins).
 
 Once you have it installed, you need to initialize it in the directory you want to use:
 ```bash
@@ -78,7 +78,7 @@ in
 As I have shown above, nix shell configurations utilize `<nixpkgs>` syntax, which is the main deal breaker for reproducibility. Therefore the solution is to import nixpkgs from `sources` provided via npins.
 
 I use the following template:
-- `nix/shell.nix` : Contains the actual shell configuration which should be built with [callPackage](). Example:
+- `nix/shell.nix` : Contains the actual shell configuration which should be built with [callPackage](https://nix.dev/tutorials/callpackage.html). Example:
 ```nix
 {
   mkShell,
@@ -102,7 +102,7 @@ pkgs.callPackage ./nix/shell.nix {}
 ```
 
 ### Bonus: direnv
-For convenience I use [direnv]() to enter `nix-shell`. It's convenient because it automatically enters into the environment and it's for some reason faster than calling `nix-shell` directly.
+For convenience I use [direnv](https://direnv.net/) to enter `nix-shell`. It's convenient because it automatically enters into the environment and it's for some reason faster than calling `nix-shell` directly.
 
 With `direnv` installed, I have the following `.envrc` file:
 ```direnv
@@ -113,7 +113,7 @@ Which is all we need.
 ## NixOS configuration
 It's harder to pin nixpkgs for NixOS configurations, because while nix shells explicitly refer to nixpkgs value they use NixOS configurations always depend on `NIX_PATH` environment variable to point to `nixpkgs`, which is then used to interpret `configuration.nix` file. It kind of creates a loop if you want to declare `NIX_PATH` inside `configuration.nix` because in order to interpret `configuration.nix` you first need to determine the location of `nixpkgs` which is only available after `NIX_PATH` is set. So this way of managing requires to run `nixos-rebuild` twice to actually take effect. I think this is not a good UX. Fortunately, we can use write a script that passes the appropriate `NIX_PATH` to `nixos-rebuild`. In order to prevent incorrect usage, `NIX_PATH` shouldn't be set by default.
 
-I use the following [Nu]() script for this:
+I use the following [Nu Shell](https://www.nushell.sh/) script for this:
 ```nu
 def build-nixos-configuration [
   device_path: string, # Path for the system configuration. Must contain a 'configuration.nix' and an 'npins' directory.
@@ -147,7 +147,7 @@ with-env {
 	sudo "--preserve-env" "-u" $"(whoami)" "nixos-rebuild" $command "--fast" ...$extra_args
 }
 ```
-1. First line evaluates the nixpkgs and returns a [Nix Store]() path.
+1. First line evaluates the nixpkgs and returns a [Nix Store](https://wiki.nixos.org/wiki/Nix_package_manager#Nix_store) path.
 2. Second line creates the appropriate `NIX_PATH` env variables. `nixpkgs` is a path to nixpkgs and `nixos-config` is the path to `configuration.nix`.
 3. Sixth line calls `nixos-rebuild` with appropriate arguments.
 
@@ -161,7 +161,7 @@ sudo --preserve-env -u "$(whoami)" nixos-rebuild $command --fast $@
 With a script like this, one can pin nixpkgs for their system configuration.
 
 ## Home Manager
-If you use [Home Manager]() the approach is very close to the system configuration. It's essentially the same, except in `NIX_PATH` you don't need to set `nixos-config`.
+If you use [Home Manager](https://nix-community.github.io/home-manager/) the approach is very close to the system configuration. It's essentially the same, except in `NIX_PATH` you don't need to set `nixos-config`.
 
 ```bash
 NIXPKGS_PIN=$(nix eval --raw -f $NPINS_PATH nixpkgs)
@@ -170,9 +170,9 @@ home-manager $command -f $HOME_MANAGER_PATH
 ```
 
 ## Conlusion
-If you have come this far, thank you for giving your time. Nix has a very good experience overall, but also has some incredibly bad UX issues. With pinning nixpkgs using `npins` you can improve this one specific issue.
+If you have come this far, thank you for giving your time. Nix has a very good experience overall, but also has some incredibly bad UX issues. With pinning nixpkgs using `npins` you can improve this one specific issue.	
 
-Credits: This post is heavily inspired by https://jade.fyi/blog/pinning-nixos-with-npins/
+Credits: This post is heavily inspired by https://jade.fyi/blog/pinning-nixos-with-npins/. If you want more deep dive explanation on the same topic I would recommend it.
 
 [^1]: https://zero-to-nix.com/concepts/channels
 [^2]: https://nix.dev/tutorials/nix-language#lookup-path-tutorial
