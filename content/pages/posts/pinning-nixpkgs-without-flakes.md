@@ -175,5 +175,5 @@ If you have come this far, thank you for giving your time. I believe that tradit
 
 Credits: This post is heavily inspired by [https://jade.fyi/blog/pinning-nixos-with-npins/](https://jade.fyi/blog/pinning-nixos-with-npins/). If you want more deep dive explanation on the same topic I would recommend it.
 
-[^1]: https://nix.dev/tutorials/nix-language#lookup-path-tutorial
-[^2]: https://zero-to-nix.com/concepts/channels
+[^1]: [https://nix.dev/tutorials/nix-language#lookup-path-tutorial](https://nix.dev/tutorials/nix-language#lookup-path-tutorial)
+[^2]: [https://zero-to-nix.com/concepts/channels](https://zero-to-nix.com/concepts/channels)
