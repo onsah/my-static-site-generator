@@ -9,8 +9,8 @@ type post_with_preview = { preview : Site.page; post : Site.post }
 type current_section = Me | Blog
 
 let generate_html_from_markdown ~markdown_str =
-  let markdown = Omd.of_string markdown_str in
-  Omd.to_html markdown
+  let doc = Cmarkit.Doc.of_string ~layout:true ~strict:false markdown_str in
+  Cmarkit_html.of_doc ~safe:false doc
 
 let generate_header_component (content_path : Path.t)
     ~(current_section : current_section) =
