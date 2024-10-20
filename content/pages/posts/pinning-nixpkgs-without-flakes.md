@@ -111,7 +111,7 @@ use nix
 Which is all we need.
 
 ## NixOS configuration
-It's harder to pin nixpkgs for NixOS configurations, because NixOS configurations implicitly depend on `<nixpkgs/nixos>`, and because it's a lookup path, it requires `NIX_PATH` environment variable to point to `nixpkgs`. It kind of creates a loop if you want to declare `NIX_PATH` inside `configuration.nix`, because in order to interpret `configuration.nix` you first need to determine the location of `nixpkgs` which is only available after `NIX_PATH` is set. So this way of managing requires to run `nixos-rebuild` **twice** to actually take effect. I think this is not a good UX. Fortunately, we can use write a script that passes the appropriate `NIX_PATH` to `nixos-rebuild`. In order to prevent incorrect usage, `NIX_PATH` shouldn't be empty by default.
+It's harder to pin nixpkgs for NixOS configurations, because NixOS configurations implicitly depend on `<nixpkgs/nixos>`, and because it's a lookup path, it requires `NIX_PATH` environment variable to point to `nixpkgs`. It kind of creates a loop if you want to declare `NIX_PATH` inside `configuration.nix`, because in order to interpret `configuration.nix` you first need to determine the location of `nixpkgs` which is only available after `NIX_PATH` is set. So this way of managing requires to run `nixos-rebuild` **twice** to actually take effect. I think this is not a good UX. Fortunately, we can write a script that passes the appropriate `NIX_PATH` to `nixos-rebuild`. In order to prevent incorrect usage, `NIX_PATH` shouldn't be empty by default.
 
 I use the following [Nu Shell](https://www.nushell.sh/) script for this:
 ```nu
@@ -173,7 +173,7 @@ home-manager $command -f $HOME_MANAGER_PATH
 ## Conlusion
 If you have come this far, thank you for giving your time. I believe that traditional Nix does many things right, but the way nixpkgs is managed really needs to change. With pinning nixpkgs using `npins` you can improve this one specific issue.
 
-Credits: This post is heavily inspired by [https://jade.fyi/blog/pinning-nixos-with-npins/](https://jade.fyi/blog/pinning-nixos-with-npins/). If you want more deep dive explanation on the same topic I would recommend it.
+Credits: This post is heavily inspired by <https://jade.fyi/blog/pinning-nixos-with-npins/>. If you want more deep dive explanation on the same topic I would recommend it.
 
-[^1]: [https://nix.dev/tutorials/nix-language#lookup-path-tutorial](https://nix.dev/tutorials/nix-language#lookup-path-tutorial)
-[^2]: [https://zero-to-nix.com/concepts/channels](https://zero-to-nix.com/concepts/channels)
+[^1]: <https://nix.dev/tutorials/nix-language#lookup-path-tutorial>
+[^2]: <https://zero-to-nix.com/concepts/channels>
