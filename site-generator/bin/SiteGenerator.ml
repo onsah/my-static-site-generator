@@ -191,15 +191,14 @@ let generate_posts ~(content_path : Path.t) ~(header_component : Site.page) =
   List.map post_components_list ~f:(fun { post; _ } -> post)
 
 let generate_style ~(content_path : Path.t) =
-  let css_pico_path =
-    Path.join content_path (Path.from_parts [ "css"; "simple.css" ])
-  and css_custom_path =
-    Path.join content_path (Path.from_parts [ "css"; "custom.css" ])
+  let css_file_names = [ "simple.css"; "custom.css"; "highlight.css" ] in
+  let css_file_paths =
+    List.map css_file_names ~f:(fun filename ->
+        Path.join content_path (Path.from_parts [ "css"; filename ]))
   in
-  let css_pico = DiskIO.read_all css_pico_path
-  and css_custom = DiskIO.read_all css_custom_path in
+  let css_file_contents = List.map css_file_paths ~f:DiskIO.read_all in
   (* Concat all styles *)
-  String.concat [ css_pico; css_custom ] ~sep:"\n"
+  String.concat css_file_contents ~sep:"\n"
 
 let generate ~content_path =
   let header_component =
@@ -213,6 +212,10 @@ let generate ~content_path =
   in
   let style_file =
     { content = generate_style ~content_path; path = Path.from "style.css" }
+  in
+  let highlight_js_file =
+    let highlight_js_path = Path.join content_path (Path.from_parts [ "highlight"; "highlight.min.js" ]) in
+    { content = DiskIO.read_all highlight_js_path; path = Path.from "highlight.js" }
   in
   let blog_file =
     {
@@ -230,4 +233,4 @@ let generate ~content_path =
       ~f:(fun post ->
         { content = post.page |> Soup.to_string; path = post.path2 })
   in
-  { output_files = [ index_file; blog_file; style_file ] @ post_files }
+  { output_files = [ index_file; blog_file; style_file; highlight_js_file ] @ post_files }
