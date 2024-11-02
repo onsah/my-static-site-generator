@@ -151,7 +151,7 @@ with-env {
 2. Second line creates the appropriate `NIX_PATH` env variables. `nixpkgs` is a path to nixpkgs and `nixos-config` is the path to `configuration.nix`.
 3. Sixth line calls `nixos-rebuild` with appropriate arguments.
 
-The same part can be written is bash as (disclaimer: I didn't test it):
+The same part can be written in bash as (disclaimer: I didn't test it):
 ```bash
 NIXPKGS_PIN=$(nix eval --raw -f $NPINS_PATH nixpkgs)
 NIX_PATH="nixpkgs=$NIXPKGS_PIN:nixos-config=$CONFIGURATION_PATH"
