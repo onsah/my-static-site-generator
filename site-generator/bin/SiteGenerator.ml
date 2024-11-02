@@ -214,8 +214,14 @@ let generate ~content_path =
     { content = generate_style ~content_path; path = Path.from "style.css" }
   in
   let highlight_js_file =
-    let highlight_js_path = Path.join content_path (Path.from_parts [ "highlight"; "highlight.min.js" ]) in
-    { content = DiskIO.read_all highlight_js_path; path = Path.from "highlight.js" }
+    let highlight_js_path =
+      Path.join content_path
+        (Path.from_parts [ "highlight"; "highlight.min.js" ])
+    in
+    {
+      content = DiskIO.read_all highlight_js_path;
+      path = Path.from "highlight.js";
+    }
   in
   let blog_file =
     {
@@ -233,4 +239,7 @@ let generate ~content_path =
       ~f:(fun post ->
         { content = post.page |> Soup.to_string; path = post.path2 })
   in
-  { output_files = [ index_file; blog_file; style_file; highlight_js_file ] @ post_files }
+  {
+    output_files =
+      [ index_file; blog_file; style_file; highlight_js_file ] @ post_files;
+  }
