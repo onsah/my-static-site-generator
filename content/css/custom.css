@@ -10,6 +10,15 @@
     --color: var(--color) !important;
 }
 
+@font-face {
+    font-family: "AtkinsonHyperlegible";
+    src: url("AtkinsonHyperlegible-Regular.ttf");
+}  
+
+:root {
+    --sans-font: "AtkinsonHyperlegible", "sans-serif";
+}
+
 html,
 body {
     height: 100%;
