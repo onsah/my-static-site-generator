@@ -200,6 +200,13 @@ let generate_style ~(content_path : Path.t) =
   (* Concat all styles *)
   String.concat css_file_contents ~sep:"\n"
 
+let generate_font_files ~(content_path : Path.t) =
+  let fonts_dir = Path.join content_path (Path.from_parts [ "css"; "fonts" ]) in
+  let font_names = DiskIO.list fonts_dir in
+  List.map font_names ~f:(fun name ->
+      let path = Path.join fonts_dir name in
+      { content = DiskIO.read_all path; path = Path.join (Path.from "fonts") name; })
+
 let generate ~content_path =
   let header_component =
     generate_header_component content_path ~current_section:Blog
@@ -213,6 +220,7 @@ let generate ~content_path =
   let style_file =
     { content = generate_style ~content_path; path = Path.from "style.css" }
   in
+  let font_files = generate_font_files ~content_path in
   let highlight_js_file =
     let highlight_js_path =
       Path.join content_path
@@ -241,5 +249,6 @@ let generate ~content_path =
   in
   {
     output_files =
-      [ index_file; blog_file; style_file; highlight_js_file ] @ post_files;
+      [ index_file; blog_file; style_file; highlight_js_file ]
+      @ font_files @ post_files;
   }

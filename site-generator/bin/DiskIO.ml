@@ -19,7 +19,7 @@ let read_all path =
   match get_type path with
   | File -> In_channel.read_all (path |> Path.to_string)
   | Directory -> failwith "Illegal Argument: Can't read directory."
-  | Unknown -> failwith "Illegal Argument: Path doesn't exist."
+  | Unknown -> failwith (sprintf "Illegal Argument: '%s' doesn't exist." (Path.to_string path))
 
 let list path =
   match get_type path with
@@ -27,7 +27,7 @@ let list path =
       List.map
         (Sys_unix.readdir (Path.to_string path) |> List.of_array)
         ~f:Path.from
-  | _ -> failwith "Illegal Argument: Path must be a directory."
+  | _ -> failwith (sprintf "Illegal Argument: '%s' is not a directory." (Path.to_string path))
 
 (* User: read write execute, rest: only read *)
 let unix_file_permissions = 0o744
