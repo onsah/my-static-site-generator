@@ -67,6 +67,7 @@ type output_file = {
 
 type post = {
   title : string;
+  created_at : Date.t;
   (* path of the post in the website hiearachy *)
   path : string;
   path2 : Path.t;

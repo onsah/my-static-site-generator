@@ -134,7 +134,10 @@ let generate_post_components ~(content_path : Path.t)
     (Soup.create_element "h1" ~inner_text:title);
   Soup.replace (page $ "#created-at")
     (Soup.create_text (date_to_string created_at));
-  { preview; post = { title; page; path = post_path; path2 = path } }
+  {
+    preview;
+    post = { title; created_at; page; path = post_path; path2 = path };
+  }
 
 let generate_post_components_list ~(content_path : Path.t)
     ~(header_component : Site.page) : post_with_preview list =
@@ -167,6 +170,11 @@ let generate_post_components_list ~(content_path : Path.t)
         in
         generate_post_components ~content_path ~metadata ~post_component
           ~header_component:(clone_page header_component))
+  in
+  let post_components_list =
+    List.sort post_components_list
+      ~compare:(fun { post = post1; _ } { post = post2; _ } ->
+        -(Date.compare post1.created_at post2.created_at))
   in
   post_components_list
 
@@ -205,7 +213,10 @@ let generate_font_files ~(content_path : Path.t) =
   let font_names = DiskIO.list fonts_dir in
   List.map font_names ~f:(fun name ->
       let path = Path.join fonts_dir name in
-      { content = DiskIO.read_all path; path = Path.join (Path.from "fonts") name; })
+      {
+        content = DiskIO.read_all path;
+        path = Path.join (Path.from "fonts") name;
+      })
 
 let generate ~content_path =
   let header_component =
