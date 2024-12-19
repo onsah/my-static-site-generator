@@ -3,7 +3,7 @@ Proper error handling is hard. It's maybe one of the hardest problems in program
 
 Strangely, while many believe that error handling is very important I believe that mainstream languages really suck at providing tools for error handling. The main issues I see are: relying on conventions, restrictive type systems and poor composability. However, I think that there is actually an approach that can be enforced without putting too much mental load into the programmer's mind while still being composable and applicable to real code.
 
-In this article, I go about main approaches to error handling, argue about their strengths and weaknesses. Then I propose the approach that I think the best we have yet, which is not really too much different than one of the approaches I discuss before.
+In this article, I go about main approaches to error handling, argue about their strengths and weaknesses. Then I propose an approach that I think is promising but not implemented in any mainstream languages yet.
 
 ## The Philosophy of Error Handling
 
@@ -20,7 +20,7 @@ I place myself into the second camp. The main point of this article is not to co
 
 ### Special Values
 
-This approach essentially uses some values of a type to have special meanings. For example, [open](https://www.man7.org/linux/man-pages/man2/open.2.html#RETURN_VALUE) syscall in Linux returns an integer. This integer is normally the file descriptor, but on error it has a special value `-1`. It purely relies on convention that users will check the return value before using it so they don't use `-1` as a valid file descriptor.
+This approach essentially uses some values of a type to have special meanings. For example, [open](https://www.man7.org/linux/man-pages/man2/open.2.html#RETURN_VALUE) syscall in Linux returns an integer. This integer is normally the file descriptor, but on error it has a special value `-1`. It purely relies on convention that users will check the return value before using it so they don't use `-1` as a valid file descriptor. Some languages that use this approach are: C, C++ and Go. Java also uses it in some of it's APIs since in a lot of cases `null` is returned when the desired object does not exist for some reason.
 
 This approach has couple advantages. First, it's easy to implement because it requires literally zero language support. It can be achieved purely by using existing language constructs. Another advantage is that it's easy to understand: if you have a special value then it's an error, otherwise it's not. It's a simple if-else check.
 
@@ -30,7 +30,7 @@ Another problem is that it's not possible to be sure that a value is already che
 
 The last problem is that when you change the code so that some assumptions about a variable changes, you need to mentally propagate new conditions into rest of the code. As with everything that relies on people it's error prone and causes unnecessary mental load. When you do a mistake during propagation you end up with new bugs that you are not aware. For example, you check a variable is valid, then perform some operation on it. But later if you add a code that mutates that variable in between, you will probably forget to check it after the mutation. It is easy to do this mistake when there are many variables involved or there are deep call chains.
 
-The drawbacks are obvious in [open](https://www.man7.org/linux/man-pages/man2/open.2.html#RETURN_VALUE). Whenever you take a file descriptor as an argument you have to consider the case that passed file descriptor is not actually valid. User may have forgotten to check if file descriptor is not equal to `-1`. And there is no way to restrict the argument type into _only valid_ file descriptor values. This causes a lot of unnecessary lines of codes when you want to just operate on valid values. Which causes more maintenance burden and also more tests.
+The drawbacks are obvious in [open](https://www.man7.org/linux/man-pages/man2/open.2.html#RETURN_VALUE). Whenever you take a file descriptor as an argument you have to consider the case that passed file descriptor is not actually valid. User may have forgotten to check if file descriptor is not equal to `-1`. And there is no way to restrict the argument type into _only valid_ file descriptor values. This causes a lot of unnecessary lines of codes when you want to just operate on valid values. Which causes more maintenance burden and also more tests. Debugging is difficult because the information is very little and it's not possible to detect where did the error originate.
 
 TODO: check if there is research behind it.
 
@@ -38,7 +38,13 @@ Because of the drawbacks, this approach is ver unpopular these days. However, th
 
 ### Exceptions
 
-### Errors as Values
+In this approach functions return values when no error occurs, but exceptions are thrown when an error occurs. Throwing an exception immediately stops any further execution of the current block and pops the call stack until a matching exception handler is found. When a suitable handler is found the program continues from the handler block. An example is [Files.copy](https://docs.oracle.com/javase/8/docs/api/java/nio/file/Files.html#copy-java.io.InputStream-java.nio.file.Path-java.nio.file.CopyOption...-) method from Java. When there are no errors, it simply returns the number of bytes copied, otherwise it throws `IOException` which means some I/O error has occured. In this case user need to handle the error using `try/catch` or it's automatically "bubbled up" until there is a `catch` statement that accepts an `IOException`.
+
+Exceptions approach is divided into _checked_ and _unechecked_ exceptions. The main difference is that checked exceptions require that any exception is either handled or specified in the function signature. Unchecked exceptions, as the name suggests, don't require it. Some properties are common in both approaches and some are specific to each other.
+
+TODO
+
+### Monadic Errors
 
 ## Proposed approach
 
