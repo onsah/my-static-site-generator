@@ -5,6 +5,9 @@
 build:
 	dune build
 
+watch:
+	dune build --watch
+
 format:
 	dune fmt
 
