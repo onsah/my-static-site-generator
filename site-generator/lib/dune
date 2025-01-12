@@ -1,0 +1,6 @@
+(library
+ (name templating_engine)
+ (inline_tests)
+ (preprocess 
+  (pps ppx_inline_test ppx_assert))
+ (libraries core lambdasoup))
