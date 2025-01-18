@@ -143,7 +143,7 @@ let perform_templating ~(doc : html_document) ~(context : context) =
                   { line; column }
                 in
                 let errors =
-                  List.map errors ~f:(fun error -> { kind = error; position })
+                  List.map errors ~f:(fun kind -> { kind; position })
                 in
                 Error errors)
         | x -> Ok x)
