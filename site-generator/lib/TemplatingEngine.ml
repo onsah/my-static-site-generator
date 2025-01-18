@@ -1,13 +1,16 @@
 open! Core
 
-type html_document = Soup.soup Soup.node
 type context_item = String of String.t | Number of float
 type context = (string, context_item, String.comparator_witness) Map.t
-type templating_error_kind = [ `UnexpectedCharacter of char ] [@@deriving sexp, compare]
-type position = { line : int; column : int } [@@deriving sexp, compare]
-type templating_error = { kind : templating_error_kind; position : position } [@@deriving sexp, compare]
 
-(* TODO: add position *)
+type templating_error_kind = [ `UnexpectedCharacter of char | `EmptyIdentifier ]
+[@@deriving sexp, compare]
+
+type position = { line : int; column : int } [@@deriving sexp, compare]
+
+type templating_error = { kind : templating_error_kind; position : position }
+[@@deriving sexp, compare]
+
 exception UnexpectedCharacter of char
 exception EmptyIdentifier
 
@@ -75,6 +78,7 @@ let perform_templating_string string (context : context) =
   match result with
   | Ok string -> Ok string
   | Error (UnexpectedCharacter c) -> Error (`UnexpectedCharacter c)
+  | Error EmptyIdentifier -> Error `EmptyIdentifier
   | Error e -> raise e
 
 let%test_unit "perform_templating_string_basic" =
@@ -84,11 +88,10 @@ let%test_unit "perform_templating_string_basic" =
   let result = perform_templating_string string context in
   [%test_eq: (string, templating_error_kind) result] result (Ok "bar")
 
-let%test "perform_templating_string_empty_identifier" =
+let%test_unit "perform_templating_string_empty_identifier" =
   let context = Map.empty (module String) in
-  match perform_templating_string "{{}}" context with
-  | exception EmptyIdentifier -> true
-  | _ -> false
+  let result = perform_templating_string "{{}}" context in
+  [%test_eq: (string, templating_error_kind) result] result (Error `EmptyIdentifier)
 
 let str_generator =
   let first = Quickcheck.Generator.char_alpha in
@@ -116,6 +119,8 @@ let%test_unit "perform_templating_string_float" =
       [%test_eq: (string, templating_error_kind) result] result (Ok expected))
 
 let flatten_list nested_list = List.bind nested_list ~f:Fun.id
+
+type html_document = Soup.soup Soup.node
 
 (* Traverses the document and performs templating on text nodes *)
 let perform_templating ~(doc : html_document) ~(context : context) =
@@ -155,8 +160,7 @@ let%test_unit "perform_templating_error_location" =
   let context = Map.empty (module String) in
   let result = perform_templating ~doc ~context in
   match result with
-  | Error ([ { position; kind } ]) -> 
-    ([%test_eq: templating_error_kind] kind (`UnexpectedCharacter '/'));
-    ([%test_eq: position] position ({ line = 1; column = 26 }))
+  | Error [ { position; kind } ] ->
+      [%test_eq: templating_error_kind] kind (`UnexpectedCharacter '/');
+      [%test_eq: position] position { line = 1; column = 26 }
   | Ok _ | Error _ -> assert false
-
