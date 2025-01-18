@@ -2,5 +2,5 @@
  (name templating_engine)
  (inline_tests)
  (preprocess 
-  (pps ppx_inline_test ppx_assert))
+  (pps ppx_inline_test ppx_assert ppx_sexp_conv ppx_variants_conv))
  (libraries core lambdasoup))

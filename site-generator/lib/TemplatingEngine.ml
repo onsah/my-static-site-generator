@@ -1,45 +1,155 @@
 open! Core
 
 type html_document = Soup.soup Soup.node
-
-type context_item =
-    | String of String.t
-    | Number of float
-
+type context_item = String of String.t | Number of float
 type context = (string, context_item, String.comparator_witness) Map.t
+type templating_error_kind = [ `UnexpectedCharacter of char ] [@@deriving sexp]
+type position = { line : int; column : int }
+type templating_error = { kind : templating_error_kind; position : position }
 
-let perform_templating_string _ _ =
-  (* TODO: match with regex {{[a-zA-Z0-9-_]+}} with middle part being extracted and replae it using context*)
-  "{{bar}}"
+(* TODO: add position *)
+exception UnexpectedCharacter of char
+exception EmptyIdentifier
+
+let compare_templating_error_kind ek1 ek2 =
+  match (ek1, ek2) with
+  | `UnexpectedCharacter c1, `UnexpectedCharacter c2 -> compare_char c1 c2
+
+let perform_templating_string string (context : context) =
+  let open Result in
+  let open struct
+    type state =
+      | Default
+      | OpenCurly
+      | ScanningStart
+      | ScanningContinue
+      | CloseCurly1
+  end in
+  let result = Buffer.create (String.length string) in
+  let current = Buffer.create 10 in
+  let state = ref Default in
+  let result =
+    try_with (fun () ->
+        String.iter string ~f:(fun c ->
+            match !state with
+            | Default -> (
+                match c with
+                | '{' -> state := OpenCurly
+                | c -> Buffer.add_char result c)
+            | OpenCurly -> (
+                match c with
+                | '{' ->
+                    Buffer.clear current;
+                    state := ScanningStart
+                | c ->
+                    (* '{' we saw before is also a normal character *)
+                    Buffer.add_char result '{';
+                    Buffer.add_char result c;
+                    state := Default)
+            | ScanningStart -> (
+                match c with
+                | 'a' .. 'z' | 'A' .. 'Z' ->
+                    Buffer.add_char current c;
+                    state := ScanningContinue
+                | '}' -> raise EmptyIdentifier
+                | _ -> raise (UnexpectedCharacter c))
+            | ScanningContinue -> (
+                match c with
+                | '}' -> state := CloseCurly1
+                | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' ->
+                    Buffer.add_char current c
+                | c -> raise (UnexpectedCharacter c))
+            | CloseCurly1 -> (
+                match c with
+                | '}' ->
+                    let key = Buffer.contents current in
+                    let lookup = Map.find_exn context key in
+                    let value =
+                      match lookup with
+                      | String text -> text
+                      | Number n -> string_of_float n
+                    in
+                    Buffer.add_string result value;
+                    Buffer.clear current;
+                    state := Default
+                (* We didn't close it yet *)
+                | c -> raise (UnexpectedCharacter c)));
+        Buffer.contents result)
+  in
+  match result with
+  | Ok string -> Ok string
+  | Error (UnexpectedCharacter c) -> Error (`UnexpectedCharacter c)
+  | Error e -> raise e
 
 let%test_unit "perform_templating_string_basic" =
   let open String in
   let string = "{{foo}}" in
-  let context = Map.of_alist_exn ["foo", String "bar"] in
+  let context = Map.of_alist_exn [ ("foo", String "bar") ] in
   let result = perform_templating_string string context in
-  [%test_eq: string] result "{{bar}}"
+  [%test_eq: (string, templating_error_kind) result] result (Ok "bar")
 
-let%test_unit "perform_templating_string_alphanumeric" =
-  let str_generator = String.gen_with_length 5 Char.quickcheck_generator in
-  Quickcheck.test
-  (Quickcheck.Generator.both str_generator str_generator)
-    ~f:(fun (s1, s2) -> 
-        let open String in
-        let string = sprintf "{{%s}}" s1 in
-        let context = Map.of_alist_exn [s1, String s2] in
-        let result = perform_templating_string string context in
-        let expected = sprintf "{{%s}}" s2 in
-        [%test_eq: string] result expected)
+let%test "perform_templating_empty_identifier" =
+  let context = Map.empty (module String) in
+  match perform_templating_string "{{}}" context with
+  | exception EmptyIdentifier -> true
+  | _ -> false
+
+let str_generator =
+  let first = Quickcheck.Generator.char_alpha in
+  let rest = String.gen_with_length 4 Quickcheck.Generator.char_alphanum in
+  Quickcheck.Generator.map2 first rest ~f:(sprintf "%c%s")
+
+let%test_unit "perform_templating_string" =
+  Quickcheck.test ~trials:50
+    (Quickcheck.Generator.both str_generator str_generator) ~f:(fun (s1, s2) ->
+      let open String in
+      let string = sprintf "{{%s}}" s1 in
+      let context = Map.of_alist_exn [ (s1, String s2) ] in
+      let result = perform_templating_string string context in
+      let expected = s2 in
+      [%test_eq: (string, templating_error_kind) result] result (Ok expected))
+
+let%test_unit "perform_templating_float" =
+  Quickcheck.test ~trials:50
+    (Quickcheck.Generator.both str_generator str_generator) ~f:(fun (s1, s2) ->
+      let open String in
+      let string = sprintf "{{%s}}" s1 in
+      let context = Map.of_alist_exn [ (s1, String s2) ] in
+      let result = perform_templating_string string context in
+      let expected = s2 in
+      [%test_eq: (string, templating_error_kind) result] result (Ok expected))
+
+let flatten_list nested_list = List.bind nested_list ~f:Fun.id
 
 (* Traverses the document and performs templating on text nodes *)
 let perform_templating ~(doc : html_document) ~(context : context) =
   let open Markup in
-  let stream = Soup.signals doc in
-  let stream = map 
-    (function 
-      | `Text str -> `Text [(perform_templating_string str context)]
-      | x -> x) 
-    stream in
-  stream |> Soup.from_signals
-
-
+  let html_string = Soup.to_string doc in
+  let parser = html_string |> Markup.string |> Markup.parse_html in
+  let stream = Markup.signals parser in
+  let stream =
+    map
+      (function
+        | `Text strs -> (
+            let results =
+              List.map strs ~f:(fun str ->
+                  perform_templating_string str context)
+            in
+            match Result.combine_errors results with
+            | Ok strs -> Ok (`Text strs)
+            | Error errors ->
+                let position =
+                  let line, column = Markup.location parser in
+                  { line; column }
+                in
+                let errors =
+                  List.map errors ~f:(fun error -> { kind = error; position })
+                in
+                Error errors)
+        | x -> Ok x)
+      stream
+  in
+  let templating_results = Markup.to_list stream in
+  match Result.combine_errors templating_results with
+  | Ok items -> Ok (Soup.from_signals (Markup.of_list items))
+  | Error errors -> Error (flatten_list errors)
