@@ -88,7 +88,7 @@ let%test_unit "perform_templating_string_basic" =
   let result = perform_templating_string string context in
   [%test_eq: (string, templating_error_kind) result] result (Ok "bar")
 
-let%test "perform_templating_empty_identifier" =
+let%test "perform_templating_string_empty_identifier" =
   let context = Map.empty (module String) in
   match perform_templating_string "{{}}" context with
   | exception EmptyIdentifier -> true
@@ -99,7 +99,7 @@ let str_generator =
   let rest = String.gen_with_length 4 Quickcheck.Generator.char_alphanum in
   Quickcheck.Generator.map2 first rest ~f:(sprintf "%c%s")
 
-let%test_unit "perform_templating_string" =
+let%test_unit "perform_templating_string_alphanum" =
   Quickcheck.test ~trials:50
     (Quickcheck.Generator.both str_generator str_generator) ~f:(fun (s1, s2) ->
       let open String in
@@ -109,7 +109,7 @@ let%test_unit "perform_templating_string" =
       let expected = s2 in
       [%test_eq: (string, templating_error_kind) result] result (Ok expected))
 
-let%test_unit "perform_templating_float" =
+let%test_unit "perform_templating_string_float" =
   Quickcheck.test ~trials:50
     (Quickcheck.Generator.both str_generator str_generator) ~f:(fun (s1, s2) ->
       let open String in
