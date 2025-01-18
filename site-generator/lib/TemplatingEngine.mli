@@ -8,11 +8,14 @@ type context_item =
 
 type context = (string, context_item, String.comparator_witness) Core.Map.t
 
+(** - [`UnexpectedCharacter] : An unexpected character found during parsing an identifier
+    - [`EmptyIdentifier] : Identifier name between `\{\{` and `\}\}` is empty. *)
 type templating_error_kind =
   [ `UnexpectedCharacter of char
   | `EmptyIdentifier
   ]
 
+(** asdasd *)
 type position =
   { line : int
   ; column : int
@@ -23,8 +26,9 @@ type templating_error =
   ; position : position
   }
 
-(*  See: docs/Templating Engine.md 
-    Performs in-place templating
+(** - [doc] : the document to perform templating. Not modified.
+    returns either the new document after templating, or list of errors happened during templating.
+    For more details see: docs/Templating Engine.md 
 *)
 val perform_templating
   :  doc:html_document
