@@ -19,7 +19,12 @@
  (name my_static_site_generator)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml dune core cmarkit)
+ (depends 
+  (ocaml (= 5.2.0))
+  dune 
+  core 
+  cmarkit
+  (lambdasoup (>= 1.1.1)))
  (tags
   (topics "to describe" your project)))
 
