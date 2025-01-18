@@ -10,7 +10,7 @@ A template is a valid HTML file with some strings in a special syntax.
 
 An identifier between `{{` and `}}` is called a variable. It's replaced with the corresponding item in the context. Otherwise templating function gives a `PropertyNotFound` error.
 
-An identifier is any string that matches with regex `[a-zA-Z0-9-_]+`.
+An identifier is any string that matches with regex `[a-zA-Z][a-zA-Z0-9-_]*`. If an unexpected character is seen between `{{` and `}}`, `UnexpectedCharacter` error is returned. If `{{}}` is occured, `EmptyIdentifier` error is returned.
 
 An item can be a string, an object, a HTML document or a list of items.
 
