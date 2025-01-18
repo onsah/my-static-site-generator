@@ -3,17 +3,13 @@ open! Core
 type html_document = Soup.soup Soup.node
 type context_item = String of String.t | Number of float
 type context = (string, context_item, String.comparator_witness) Map.t
-type templating_error_kind = [ `UnexpectedCharacter of char ] [@@deriving sexp]
-type position = { line : int; column : int }
-type templating_error = { kind : templating_error_kind; position : position }
+type templating_error_kind = [ `UnexpectedCharacter of char ] [@@deriving sexp, compare]
+type position = { line : int; column : int } [@@deriving sexp, compare]
+type templating_error = { kind : templating_error_kind; position : position } [@@deriving sexp, compare]
 
 (* TODO: add position *)
 exception UnexpectedCharacter of char
 exception EmptyIdentifier
-
-let compare_templating_error_kind ek1 ek2 =
-  match (ek1, ek2) with
-  | `UnexpectedCharacter c1, `UnexpectedCharacter c2 -> compare_char c1 c2
 
 let perform_templating_string string (context : context) =
   let open Result in
@@ -153,3 +149,14 @@ let perform_templating ~(doc : html_document) ~(context : context) =
   match Result.combine_errors templating_results with
   | Ok items -> Ok (Soup.from_signals (Markup.of_list items))
   | Error errors -> Error (flatten_list errors)
+
+let%test_unit "perform_templating_error_location" =
+  let doc = Soup.parse "<html><head></head><body>{{/}}</body></html>" in
+  let context = Map.empty (module String) in
+  let result = perform_templating ~doc ~context in
+  match result with
+  | Error ([ { position; kind } ]) -> 
+    ([%test_eq: templating_error_kind] kind (`UnexpectedCharacter '/'));
+    ([%test_eq: position] position ({ line = 1; column = 26 }))
+  | Ok _ | Error _ -> assert false
+
