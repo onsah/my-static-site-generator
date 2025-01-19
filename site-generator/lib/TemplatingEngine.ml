@@ -1,10 +1,11 @@
 open! Core
+module Map = Core.Map.Poly
 
 type context_item =
   | String of String.t
   | Number of float
 
-type context = (string, context_item, String.comparator_witness) Map.t
+type context = (string, context_item) Map.t
 
 type templating_error_kind =
   [ `UnexpectedCharacter of char
@@ -95,7 +96,6 @@ let perform_templating_string string (context : context) =
 ;;
 
 let%test_unit "perform_templating_string_basic" =
-  let open String in
   let string = "{{foo}}" in
   let context = Map.of_alist_exn [ "foo", String "bar" ] in
   let result = perform_templating_string string context in
@@ -103,7 +103,7 @@ let%test_unit "perform_templating_string_basic" =
 ;;
 
 let%test_unit "perform_templating_string_empty_identifier" =
-  let context = Map.empty (module String) in
+  let context = Map.empty in
   let result = perform_templating_string "{{}}" context in
   [%test_eq: (string, templating_error_kind) result] result (Error `EmptyIdentifier)
 ;;
@@ -119,7 +119,6 @@ let%test_unit "perform_templating_string_alphanum" =
     ~trials:50
     (Quickcheck.Generator.both str_generator str_generator)
     ~f:(fun (s1, s2) ->
-      let open String in
       let string = sprintf "{{%s}}" s1 in
       let context = Map.of_alist_exn [ s1, String s2 ] in
       let result = perform_templating_string string context in
@@ -132,7 +131,6 @@ let%test_unit "perform_templating_string_float" =
     ~trials:50
     (Quickcheck.Generator.both str_generator str_generator)
     ~f:(fun (s1, s2) ->
-      let open String in
       let string = sprintf "{{%s}}" s1 in
       let context = Map.of_alist_exn [ s1, String s2 ] in
       let result = perform_templating_string string context in
@@ -177,7 +175,7 @@ let perform_templating ~(doc : html_document) ~(context : context) =
 
 let%test_unit "perform_templating_error_location" =
   let doc = Soup.parse "<html><head></head><body>{{/}}</body></html>" in
-  let context = Map.empty (module String) in
+  let context = Map.empty in
   let result = perform_templating ~doc ~context in
   match result with
   | Error [ { position; kind } ] ->

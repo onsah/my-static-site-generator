@@ -1,5 +1,8 @@
 open! Core
 
+(** I use the version of the map where comparator is polymorphic *)
+module Map = Core.Map.Poly
+
 type html_document = Soup.soup Soup.node
 
 (** Type of the values for template variables *)
@@ -8,7 +11,7 @@ type context_item =
   | Number of float
 
 (** Mapping from template variables to their values. *)
-type context = (string, context_item, String.comparator_witness) Core.Map.t
+type context = (string, context_item) Map.t
 
 (** - [`UnexpectedCharacter] : An unexpected character found during parsing an identifier
     - [`EmptyIdentifier] : Identifier name between `\{\{` and `\}\}` is empty. *)
