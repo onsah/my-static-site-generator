@@ -2,10 +2,12 @@ open! Core
 
 type html_document = Soup.soup Soup.node
 
+(** Type of the values for template variables *)
 type context_item =
   | String of string
   | Number of float
 
+(** Mapping from template variables to their values. *)
 type context = (string, context_item, String.comparator_witness) Core.Map.t
 
 (** - [`UnexpectedCharacter] : An unexpected character found during parsing an identifier
@@ -15,7 +17,7 @@ type templating_error_kind =
   | `EmptyIdentifier
   ]
 
-(** asdasd *)
+(** A position in the HTML document. *)
 type position =
   { line : int
   ; column : int
@@ -29,6 +31,7 @@ type templating_error =
 (** - [doc] : the document to perform templating. Not modified.
     returns either the new document after templating, or list of errors happened during templating.
     For more details see: docs/Templating Engine.md 
+    - [context]
 *)
 val perform_templating
   :  doc:html_document
