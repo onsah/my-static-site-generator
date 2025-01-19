@@ -45,6 +45,7 @@ stdenv.mkDerivation {
     ocamlPackages.uucp
     ocamlPackages.uutf
     ocamlPackages.cmarkit
+    ocamlPackages.odoc
   ];
 
   installPhase = ''

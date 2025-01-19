@@ -1,5 +1,6 @@
 (library
  (name templating_engine)
+ (public_name my_static_site_generator)
  (inline_tests)
  (preprocess
   (pps
