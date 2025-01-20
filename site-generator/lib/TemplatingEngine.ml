@@ -1,4 +1,5 @@
 open! Core
+module Sequence = MySequence
 module Map = Core.Map.Poly
 
 type context_item =
@@ -27,6 +28,36 @@ type templating_error =
 
 exception UnexpectedCharacter of char
 exception EmptyIdentifier
+
+module Tokenizer = struct
+  type token =
+    | Text of string
+    | LeftCurly
+    | RightCurly
+
+  let _ = Text ""
+  let _ = RightCurly
+
+  let tokenize string : token Sequence.t =
+    let computation yield =
+      let i = ref 0 in
+      let current_char () = String.get string !i in
+      let finished () = !i < String.length string in
+      let next_char () = failwith "TODO" in
+      while not (finished ()) do
+        match current_char () with
+        | '{' ->
+          (match next_char () with
+           | '{' -> yield LeftCurly
+           | _ -> failwith "TODO")
+        | _ -> failwith "TODO"
+      done
+    in
+    MySequence.of_iterator computation
+  ;;
+
+  let _ = tokenize
+end
 
 let perform_templating_string string (context : context) =
   let open Result in
