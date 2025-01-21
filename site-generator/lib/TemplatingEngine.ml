@@ -26,37 +26,70 @@ type templating_error =
   }
 [@@deriving sexp, compare]
 
-exception UnexpectedCharacter of char
+exception Unexpected of char
+
+(** Expecting one of the characters on the list *)
+exception ExpectedOneOf of char list
+
 exception EmptyIdentifier
 
 module Tokenizer = struct
   type token =
-    | Text of string
+    | Identifier of string
     | LeftCurly
     | RightCurly
+  [@@deriving sexp, compare]
 
-  let _ = Text ""
-  let _ = RightCurly
-
+  (* TODO: return result type *)
   let tokenize string : token Sequence.t =
     let computation yield =
-      let i = ref 0 in
-      let current_char () = String.get string !i in
-      let finished () = !i < String.length string in
-      let next_char () = failwith "TODO" in
-      while not (finished ()) do
-        match current_char () with
-        | '{' ->
-          (match next_char () with
-           | '{' -> yield LeftCurly
-           | _ -> failwith "TODO")
-        | _ -> failwith "TODO"
-      done
+      let rec main chars =
+        let left_curly chars =
+          match chars with
+          | '{' :: cs ->
+            yield LeftCurly;
+            main cs
+          | c :: _ -> raise (Unexpected c)
+          | [] -> raise (ExpectedOneOf [ '{' ])
+        in
+        let right_curly chars =
+          match chars with
+          | '}' :: cs ->
+            yield RightCurly;
+            main cs
+          | c :: _ -> raise (Unexpected c)
+          | [] -> raise (ExpectedOneOf [ '}' ])
+        in
+        let rec identifier chars id =
+          match chars with
+          | [] -> yield (Identifier id)
+          | c :: cs ->
+            (match c with
+             | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' ->
+               identifier cs (id ^ String.of_char c)
+             | _ ->
+               yield (Identifier id);
+               main chars)
+        in
+        match chars with
+        | [] -> ()
+        | c :: cs ->
+          (match c with
+           | '{' -> left_curly cs
+           | '}' -> right_curly cs
+           | 'a' .. 'z' | 'A' .. 'Z' -> identifier cs (String.of_char c)
+           | _ -> raise (Unexpected c))
+      in
+      main (String.to_list string)
     in
-    MySequence.of_iterator computation
+    Sequence.of_iterator computation
   ;;
 
-  let _ = tokenize
+  let%test_unit "tokenizer_basic" =
+    let string = "{{foo}}" in
+    let tokens = tokenize string |> Sequence.to_list in
+    [%test_eq: token list] tokens [ LeftCurly; Identifier "foo"; RightCurly ]
+  ;;
 end
 
 let perform_templating_string string (context : context) =
@@ -96,12 +129,12 @@ let perform_templating_string string (context : context) =
              Buffer.add_char current c;
              state := ScanningContinue
            | '}' -> raise EmptyIdentifier
-           | _ -> raise (UnexpectedCharacter c))
+           | _ -> raise (Unexpected c))
         | ScanningContinue ->
           (match c with
            | '}' -> state := CloseCurly1
            | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' -> Buffer.add_char current c
-           | c -> raise (UnexpectedCharacter c))
+           | c -> raise (Unexpected c))
         | CloseCurly1 ->
           (match c with
            | '}' ->
@@ -116,12 +149,12 @@ let perform_templating_string string (context : context) =
              Buffer.clear current;
              state := Default
            (* We didn't close it yet *)
-           | c -> raise (UnexpectedCharacter c)));
+           | c -> raise (Unexpected c)));
       Buffer.contents result)
   in
   match result with
   | Ok string -> Ok string
-  | Error (UnexpectedCharacter c) -> Error (`UnexpectedCharacter c)
+  | Error (Unexpected c) -> Error (`UnexpectedCharacter c)
   | Error EmptyIdentifier -> Error `EmptyIdentifier
   | Error e -> raise e
 ;;
