@@ -26,13 +26,6 @@ type templating_error =
   }
 [@@deriving sexp, compare]
 
-exception Unexpected of char
-
-(** Expecting one of the characters on the list *)
-exception ExpectedOneOf of char list
-
-exception EmptyIdentifier
-
 module Tokenizer = struct
   type token =
     | Identifier of string
@@ -40,8 +33,19 @@ module Tokenizer = struct
     | RightCurly
   [@@deriving sexp, compare]
 
-  (* TODO: return result type *)
-  let tokenize string : token Sequence.t =
+  type tokenize_error =
+    [ `ExpectedOneOf of char list
+    | `Unexpected of char
+    | `EmptyIdentifier
+    ]
+  [@@deriving sexp, compare]
+
+  type tokenize_result = (token Sequence.t, tokenize_error) result
+
+  let tokenize string : tokenize_result =
+    let open struct
+      exception TokenizeError of tokenize_error
+    end in
     let computation yield =
       let rec main chars =
         let left_curly chars =
@@ -49,16 +53,16 @@ module Tokenizer = struct
           | '{' :: cs ->
             yield LeftCurly;
             main cs
-          | c :: _ -> raise (Unexpected c)
-          | [] -> raise (ExpectedOneOf [ '{' ])
+          | c :: _ -> raise (TokenizeError (`Unexpected c))
+          | [] -> raise (TokenizeError (`ExpectedOneOf [ '{' ]))
         in
         let right_curly chars =
           match chars with
           | '}' :: cs ->
             yield RightCurly;
             main cs
-          | c :: _ -> raise (Unexpected c)
-          | [] -> raise (ExpectedOneOf [ '}' ])
+          | c :: _ -> raise (TokenizeError (`Unexpected c))
+          | [] -> raise (TokenizeError (`ExpectedOneOf [ '}' ]))
         in
         let rec identifier chars id =
           match chars with
@@ -78,19 +82,29 @@ module Tokenizer = struct
            | '{' -> left_curly cs
            | '}' -> right_curly cs
            | 'a' .. 'z' | 'A' .. 'Z' -> identifier cs (String.of_char c)
-           | _ -> raise (Unexpected c))
+           | _ -> raise (TokenizeError (`Unexpected c)))
       in
       main (String.to_list string)
     in
-    Sequence.of_iterator computation
+    try Ok (Sequence.of_iterator computation) with
+    | TokenizeError error -> Error error
   ;;
 
   let%test_unit "tokenizer_basic" =
     let string = "{{foo}}" in
-    let tokens = tokenize string |> Sequence.to_list in
-    [%test_eq: token list] tokens [ LeftCurly; Identifier "foo"; RightCurly ]
+    let result = tokenize string |> Result.map ~f:Sequence.to_list in
+    [%test_eq: (token list, tokenize_error) result]
+      result
+      (Ok [ LeftCurly; Identifier "foo"; RightCurly ])
   ;;
 end
+
+exception Unexpected of char
+
+(** Expecting one of the characters on the list *)
+exception ExpectedOneOf of char list
+
+exception EmptyIdentifier
 
 let perform_templating_string string (context : context) =
   let open Result in
