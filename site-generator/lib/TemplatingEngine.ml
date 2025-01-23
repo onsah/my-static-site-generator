@@ -8,9 +8,174 @@ type context_item =
 
 type context = (string, context_item) Map.t
 
+module Tokenizer = struct
+  type token =
+    | Text of string
+    | LeftCurly
+    | RightCurly
+  [@@deriving sexp, compare]
+
+  let show = function
+    | Text text -> text
+    | LeftCurly -> "{{"
+    | RightCurly -> "}}"
+  ;;
+
+  type error =
+    [ `TokenizerExpectedOneOf of char list
+    | `TokenizerUnexpected of char
+    ]
+  [@@deriving sexp, compare]
+
+  let tokenize string : (token Sequence.t, [> error ]) result =
+    let open struct
+      exception TokenizerExpectedOneOf of char list
+      exception TokenizerUnexpected of char
+    end in
+    let computation yield =
+      let rec main chars =
+        match chars with
+        | [] -> ()
+        | c :: cs ->
+          (match c with
+           | '{' -> left_curly cs
+           | '}' -> right_curly cs
+           | 'a' .. 'z' | 'A' .. 'Z' -> identifier cs (String.of_char c)
+           | _ -> raise (TokenizerUnexpected c))
+      and left_curly chars =
+        match chars with
+        | '{' :: cs ->
+          yield LeftCurly;
+          main cs
+        | c :: _ -> raise (TokenizerUnexpected c)
+        | [] -> raise (TokenizerExpectedOneOf [ '{' ])
+      and right_curly chars =
+        match chars with
+        | '}' :: cs ->
+          yield RightCurly;
+          main cs
+        | c :: _ -> raise (TokenizerUnexpected c)
+        | [] -> raise (TokenizerExpectedOneOf [ '}' ])
+      and identifier chars id =
+        match chars with
+        | [] -> yield (Text id)
+        | c :: cs ->
+          (match c with
+           | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' -> identifier cs (id ^ String.of_char c)
+           | _ ->
+             yield (Text id);
+             main chars)
+      in
+      main (String.to_list string)
+    in
+    try Ok (Sequence.of_iterator computation) with
+    | TokenizerExpectedOneOf chars -> Error (`TokenizerExpectedOneOf chars)
+    | TokenizerUnexpected char -> Error (`TokenizerUnexpected char)
+  ;;
+
+  let%test_unit "tokenizer_basic" =
+    let string = "{{foo}}" in
+    let result = tokenize string |> Result.map ~f:Sequence.to_list in
+    [%test_eq: (token list, error) result]
+      result
+      (Ok [ LeftCurly; Text "foo"; RightCurly ])
+  ;;
+end
+
+module Templating = struct
+  type error =
+    [ `Unexpected of string
+    | `VariableNotFound of string
+    | `FinishedUnexpectedly
+    ]
+  [@@deriving sexp, compare]
+
+  let perform ~tokens (context : context) : (string Sequence.t, [> error ]) result =
+    let open Tokenizer in
+    let open struct
+      exception Unexpected of token
+      exception VariableNotFound of string
+      exception FinishedUnexpectedly
+    end in
+    let computation yield =
+      let rest tokens = Sequence.tl tokens |> Option.value ~default:Sequence.empty in
+      let rec default tokens =
+        match Sequence.hd tokens with
+        | Some LeftCurly -> right_curly (rest tokens)
+        | Some RightCurly -> raise (Unexpected RightCurly)
+        | Some (Text s) -> yield s
+        | None -> ()
+      and right_curly tokens =
+        match Sequence.hd tokens with
+        | Some LeftCurly -> raise (Unexpected LeftCurly)
+        | Some (Text s) -> text s (rest tokens)
+        | Some RightCurly -> raise (Unexpected Tokenizer.RightCurly)
+        | None -> raise FinishedUnexpectedly
+      and text text tokens =
+        match Map.find context text with
+        | Some value ->
+          let replaced_text =
+            match value with
+            | String s -> s
+            | Number n -> string_of_float n
+          in
+          yield replaced_text;
+          left_curly tokens
+        | None -> raise (VariableNotFound text)
+      and left_curly tokens =
+        match Sequence.hd tokens with
+        | Some RightCurly -> default (rest tokens)
+        | Some (Text _ as token) | Some (LeftCurly as token) -> raise (Unexpected token)
+        | None -> raise FinishedUnexpectedly
+      in
+      default tokens
+    in
+    try Ok (Sequence.of_iterator computation) with
+    | Unexpected token -> Error (`Unexpected (token |> Tokenizer.show))
+    | VariableNotFound id -> Error (`VariableNotFound id)
+    | FinishedUnexpectedly -> Error `FinishedUnexpectedly
+  ;;
+
+  (* TESTS *)
+
+  let str_generator =
+    let first = Quickcheck.Generator.char_alpha in
+    let rest = String.gen_with_length 4 Quickcheck.Generator.char_alphanum in
+    Quickcheck.Generator.map2 first rest ~f:(sprintf "%c%s")
+  ;;
+
+  let%test_unit "perform_templating_string_alphanum" =
+    Quickcheck.test
+      ~trials:50
+      (Quickcheck.Generator.both str_generator str_generator)
+      ~f:(fun (s1, s2) ->
+        let open Tokenizer in
+        let tokens = Sequence.of_list [ LeftCurly; Text s1; RightCurly ] in
+        let context = Map.of_alist_exn [ s1, String s2 ] in
+        let result = perform ~tokens context in
+        let actual = result |> Result.ok |> Option.value_exn |> Sequence.to_list in
+        let expected = [ s2 ] in
+        [%test_eq: string list] actual expected)
+  ;;
+
+  let%test_unit "perform_templating_string_float" =
+    Quickcheck.test
+      ~trials:50
+      (Quickcheck.Generator.both str_generator str_generator)
+      ~f:(fun (s1, s2) ->
+        let open Tokenizer in
+        let tokens = Sequence.of_list [ LeftCurly; Text s1; RightCurly ] in
+        let context = Map.of_alist_exn [ s1, String s2 ] in
+        let result = perform ~tokens context in
+        let actual = result |> Result.ok |> Option.value_exn |> Sequence.to_list in
+        let expected = [ s2 ] in
+        [%test_eq: string list] actual expected)
+  ;;
+end
+
 type templating_error_kind =
-  [ `UnexpectedCharacter of char
-  | `EmptyIdentifier
+  [ Tokenizer.error
+  | Templating.error
   ]
 [@@deriving sexp, compare]
 
@@ -26,238 +191,42 @@ type templating_error =
   }
 [@@deriving sexp, compare]
 
-module Tokenizer = struct
-  type token =
-    | Identifier of string
-    | LeftCurly
-    | RightCurly
-  [@@deriving sexp, compare]
-
-  type tokenize_error =
-    [ `ExpectedOneOf of char list
-    | `Unexpected of char
-    | `EmptyIdentifier
-    ]
-  [@@deriving sexp, compare]
-
-  type tokenize_result = (token Sequence.t, tokenize_error) result
-
-  let tokenize string : tokenize_result =
-    let open struct
-      exception TokenizeError of tokenize_error
-    end in
-    let computation yield =
-      let rec main chars =
-        let left_curly chars =
-          match chars with
-          | '{' :: cs ->
-            yield LeftCurly;
-            main cs
-          | c :: _ -> raise (TokenizeError (`Unexpected c))
-          | [] -> raise (TokenizeError (`ExpectedOneOf [ '{' ]))
-        in
-        let right_curly chars =
-          match chars with
-          | '}' :: cs ->
-            yield RightCurly;
-            main cs
-          | c :: _ -> raise (TokenizeError (`Unexpected c))
-          | [] -> raise (TokenizeError (`ExpectedOneOf [ '}' ]))
-        in
-        let rec identifier chars id =
-          match chars with
-          | [] -> yield (Identifier id)
-          | c :: cs ->
-            (match c with
-             | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' ->
-               identifier cs (id ^ String.of_char c)
-             | _ ->
-               yield (Identifier id);
-               main chars)
-        in
-        match chars with
-        | [] -> ()
-        | c :: cs ->
-          (match c with
-           | '{' -> left_curly cs
-           | '}' -> right_curly cs
-           | 'a' .. 'z' | 'A' .. 'Z' -> identifier cs (String.of_char c)
-           | _ -> raise (TokenizeError (`Unexpected c)))
-      in
-      main (String.to_list string)
-    in
-    try Ok (Sequence.of_iterator computation) with
-    | TokenizeError error -> Error error
-  ;;
-
-  let%test_unit "tokenizer_basic" =
-    let string = "{{foo}}" in
-    let result = tokenize string |> Result.map ~f:Sequence.to_list in
-    [%test_eq: (token list, tokenize_error) result]
-      result
-      (Ok [ LeftCurly; Identifier "foo"; RightCurly ])
-  ;;
-end
-
-exception Unexpected of char
-
-(** Expecting one of the characters on the list *)
-exception ExpectedOneOf of char list
-
-exception EmptyIdentifier
-
-let perform_templating_string string (context : context) =
-  let open Result in
-  let open struct
-    type state =
-      | Default
-      | OpenCurly
-      | ScanningStart
-      | ScanningContinue
-      | CloseCurly1
-  end in
-  let result = Buffer.create (String.length string) in
-  let current = Buffer.create 10 in
-  let state = ref Default in
-  let result =
-    try_with (fun () ->
-      String.iter string ~f:(fun c ->
-        match !state with
-        | Default ->
-          (match c with
-           | '{' -> state := OpenCurly
-           | c -> Buffer.add_char result c)
-        | OpenCurly ->
-          (match c with
-           | '{' ->
-             Buffer.clear current;
-             state := ScanningStart
-           | c ->
-             (* '{' we saw before is also a normal character *)
-             Buffer.add_char result '{';
-             Buffer.add_char result c;
-             state := Default)
-        | ScanningStart ->
-          (match c with
-           | 'a' .. 'z' | 'A' .. 'Z' ->
-             Buffer.add_char current c;
-             state := ScanningContinue
-           | '}' -> raise EmptyIdentifier
-           | _ -> raise (Unexpected c))
-        | ScanningContinue ->
-          (match c with
-           | '}' -> state := CloseCurly1
-           | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' -> Buffer.add_char current c
-           | c -> raise (Unexpected c))
-        | CloseCurly1 ->
-          (match c with
-           | '}' ->
-             let key = Buffer.contents current in
-             let lookup = Map.find_exn context key in
-             let value =
-               match lookup with
-               | String text -> text
-               | Number n -> string_of_float n
-             in
-             Buffer.add_string result value;
-             Buffer.clear current;
-             state := Default
-           (* We didn't close it yet *)
-           | c -> raise (Unexpected c)));
-      Buffer.contents result)
-  in
-  match result with
-  | Ok string -> Ok string
-  | Error (Unexpected c) -> Error (`UnexpectedCharacter c)
-  | Error EmptyIdentifier -> Error `EmptyIdentifier
-  | Error e -> raise e
-;;
-
-let%test_unit "perform_templating_string_basic" =
-  let string = "{{foo}}" in
-  let context = Map.of_alist_exn [ "foo", String "bar" ] in
-  let result = perform_templating_string string context in
-  [%test_eq: (string, templating_error_kind) result] result (Ok "bar")
-;;
-
-let%test_unit "perform_templating_string_empty_identifier" =
-  let context = Map.empty in
-  let result = perform_templating_string "{{}}" context in
-  [%test_eq: (string, templating_error_kind) result] result (Error `EmptyIdentifier)
-;;
-
-let str_generator =
-  let first = Quickcheck.Generator.char_alpha in
-  let rest = String.gen_with_length 4 Quickcheck.Generator.char_alphanum in
-  Quickcheck.Generator.map2 first rest ~f:(sprintf "%c%s")
-;;
-
-let%test_unit "perform_templating_string_alphanum" =
-  Quickcheck.test
-    ~trials:50
-    (Quickcheck.Generator.both str_generator str_generator)
-    ~f:(fun (s1, s2) ->
-      let string = sprintf "{{%s}}" s1 in
-      let context = Map.of_alist_exn [ s1, String s2 ] in
-      let result = perform_templating_string string context in
-      let expected = s2 in
-      [%test_eq: (string, templating_error_kind) result] result (Ok expected))
-;;
-
-let%test_unit "perform_templating_string_float" =
-  Quickcheck.test
-    ~trials:50
-    (Quickcheck.Generator.both str_generator str_generator)
-    ~f:(fun (s1, s2) ->
-      let string = sprintf "{{%s}}" s1 in
-      let context = Map.of_alist_exn [ s1, String s2 ] in
-      let result = perform_templating_string string context in
-      let expected = s2 in
-      [%test_eq: (string, templating_error_kind) result] result (Ok expected))
-;;
-
-let flatten_list nested_list = List.bind nested_list ~f:Fun.id
-
 type html_document = Soup.soup Soup.node
 
 (* Traverses the document and performs templating on text nodes *)
-let perform_templating ~(doc : html_document) ~(context : context) =
-  let open Markup in
-  let html_string = Soup.to_string doc in
-  let parser = html_string |> Markup.string |> Markup.parse_html in
-  let stream = Markup.signals parser in
-  let stream =
-    map
-      (function
-        | `Text strs ->
-          let results =
-            List.map strs ~f:(fun str -> perform_templating_string str context)
-          in
-          (match Result.combine_errors results with
-           | Ok strs -> Ok (`Text strs)
-           | Error errors ->
-             let position =
-               let line, column = Markup.location parser in
-               { line; column }
-             in
-             let errors = List.map errors ~f:(fun kind -> { kind; position }) in
-             Error errors)
-        | x -> Ok x)
-      stream
+let run ~(doc : html_document) ~(context : context) =
+  let open Result.Let_syntax in
+  let parser = Soup.to_string doc |> Markup.string |> Markup.parse_html in
+  let map_signal =
+    let perform_templating string (context : context) =
+      let%bind tokens = Tokenizer.tokenize string in
+      let%map strings = Templating.perform ~tokens context in
+      strings |> Sequence.to_list |> String.concat
+    and add_position_to_error error =
+      let line, column = Markup.location parser in
+      { kind = error; position = { line; column } }
+    in
+    function
+    | `Text strs ->
+      let joined_str = String.concat strs in
+      perform_templating joined_str context
+      |> Result.map ~f:(fun str -> `Text [ str ])
+      |> Result.map_error ~f:add_position_to_error
+    | x -> Ok x
   in
-  let templating_results = Markup.to_list stream in
-  match Result.combine_errors templating_results with
-  | Ok items -> Ok (Soup.from_signals (Markup.of_list items))
-  | Error errors -> Error (flatten_list errors)
+  let stream = Markup.signals parser in
+  let stream = Markup.map map_signal stream in
+  let%map items = stream |> Markup.to_list |> Result.combine_errors in
+  items |> Markup.of_list |> Soup.from_signals
 ;;
 
 let%test_unit "perform_templating_error_location" =
   let doc = Soup.parse "<html><head></head><body>{{/}}</body></html>" in
   let context = Map.empty in
-  let result = perform_templating ~doc ~context in
+  let result = run ~doc ~context in
   match result with
   | Error [ { position; kind } ] ->
-    [%test_eq: templating_error_kind] kind (`UnexpectedCharacter '/');
+    [%test_eq: templating_error_kind] kind (`TokenizerUnexpected '/');
     [%test_eq: position] position { line = 1; column = 26 }
   | Ok _ | Error _ -> assert false
 ;;

@@ -13,11 +13,12 @@ type context_item =
 (** Mapping from template variables to their values. *)
 type context = (string, context_item) Map.t
 
-(** - [`UnexpectedCharacter] : An unexpected character found during parsing an identifier
-    - [`EmptyIdentifier] : Identifier name between `\{\{` and `\}\}` is empty. *)
 type templating_error_kind =
-  [ `UnexpectedCharacter of char
-  | `EmptyIdentifier
+  [ `TokenizerExpectedOneOf of char list
+  | `TokenizerUnexpected of char
+  | `Unexpected of string
+  | `VariableNotFound of string
+  | `FinishedUnexpectedly
   ]
 
 (** A position in the HTML document. *)
@@ -36,7 +37,7 @@ type templating_error =
     For more details see: docs/Templating Engine.md 
     - [context]
 *)
-val perform_templating
+val run
   :  doc:html_document
   -> context:context
   -> (html_document, templating_error list) result
