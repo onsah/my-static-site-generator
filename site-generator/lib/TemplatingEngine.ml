@@ -195,10 +195,10 @@ type html_document = Soup.soup Soup.node
 
 (* Traverses the document and performs templating on text nodes *)
 let run ~(doc : html_document) ~(context : context) =
-  let open Result.Let_syntax in
   let parser = Soup.to_string doc |> Markup.string |> Markup.parse_html in
-  let map_signal =
+  let perform_templating_element =
     let perform_templating string (context : context) =
+      let open Result.Let_syntax in
       let%bind tokens = Tokenizer.tokenize string in
       let%map strings = Templating.perform ~tokens context in
       strings |> Sequence.to_list |> String.concat
@@ -214,10 +214,11 @@ let run ~(doc : html_document) ~(context : context) =
       |> Result.map_error ~f:add_position_to_error
     | x -> Ok x
   in
-  let stream = Markup.signals parser in
-  let stream = Markup.map map_signal stream in
-  let%map items = stream |> Markup.to_list |> Result.combine_errors in
-  items |> Markup.of_list |> Soup.from_signals
+  Markup.signals parser
+  |> Markup.map perform_templating_element
+  |> Markup.to_list
+  |> Result.combine_errors
+  |> Result.map ~f:(fun items -> items |> Markup.of_list |> Soup.from_signals)
 ;;
 
 let%test_unit "perform_templating_error_location" =
