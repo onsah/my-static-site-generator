@@ -22,22 +22,21 @@ type templating_error_kind =
   ]
 
 (** A position in the HTML document. *)
-type position =
+type location =
   { line : int
   ; column : int
   }
 
 type templating_error =
   { kind : templating_error_kind
-  ; position : position
+  ; position : location
   }
 
-(** - [doc] : the document to perform templating. Not modified.
-    returns either the new document after templating, or list of errors happened during templating.
-    For more details see: docs/Templating Engine.md 
-    - [context]
+(**
+  returns either the new document after templating, or list of errors happened during templating.
 *)
 val run
-  :  doc:html_document
+  :  template:string
   -> context:context
-  -> (html_document, templating_error list) result
+  (* TODO: error list *)
+  -> (string, templating_error) result
