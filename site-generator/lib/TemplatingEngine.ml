@@ -15,20 +15,6 @@ type location =
 [@@deriving sexp, compare]
 
 module Location = struct
-  let with_location string : (char * location) Sequence.t =
-    string
-    |> String.to_sequence
-    |> Sequence.folding_map
-         ~init:{ line = 0; column = 0 }
-         ~f:(fun ({ line; column } as loc) char ->
-           let next_loc =
-             match char with
-             | '\n' -> { line = line + 1; column = 0 }
-             | _ -> { line; column = column + 1 }
-           in
-           next_loc, (char, loc))
-  ;;
-
   let add_col { line; column } ~amount = { line; column = column + amount }
   let increment_col = add_col ~amount:1
 end
@@ -46,91 +32,87 @@ module Tokenizer = struct
     }
   [@@deriving sexp, compare]
 
-  let end_location { kind; location = { line; column } } =
-    let offset =
+  type error =
+    [ `TokenizerExpectedOneOf of char list * location
+    | `TokenizerUnexpected of char * location
+    ]
+  [@@deriving sexp, compare]
+
+  let end_location { kind; location } =
+    let amount =
       match kind with
       | LeftCurly | RightCurly -> 2
       | Text text -> String.length text
     in
-    { line; column = column + offset }
+    Location.add_col location ~amount
   ;;
 
-  let show = function
-    | Text text -> text
-    | LeftCurly -> "{{"
-    | RightCurly -> "}}"
+  let with_location chars : (char * location) Sequence.t =
+    Sequence.folding_map
+      chars
+      ~init:{ line = 0; column = 0 }
+      ~f:(fun ({ line; column } as loc) char ->
+        let next_loc =
+          match char with
+          | '\n' -> { line = line + 1; column = 0 }
+          | _ -> { line; column = column + 1 }
+        in
+        next_loc, (char, loc))
   ;;
 
-  type error_kind =
-    [ `TokenizerExpectedOneOf of char list
-    | `TokenizerUnexpected of char
-    ]
-  [@@deriving sexp, compare]
-
-  type error =
-    { error_kind : error_kind
-    ; location : location
-    }
-  [@@deriving sexp, compare]
-
-  let tokenize (chars_with_location : (char * location) Sequence.t)
-    : (token Sequence.t, error) result
-    =
+  let tokenize (chars : char Sequence.t) : (token Sequence.t, [> error ]) result =
     let open struct
-      exception TokenizerExpectedOneOf of (char list * location)
-      exception TokenizerUnexpected of (char * location)
+      exception ExpectedOneOf of (char list * location)
+      exception Unexpected of (char * location)
     end in
-    let computation yield =
-      let rec main chars =
+    let computation chars yield =
+      let rec default chars =
         match Sequence.next chars with
-        | Some (((char, location) as char_loc), rest) ->
+        | Some (((char, location) as char_loc), chars) ->
           (match char with
-           | '{' -> left_curly rest ~start_location:location
-           | '}' -> right_curly rest ~start_location:location
+           | '{' -> left_curly chars ~start_location:location
+           | '}' -> right_curly chars ~start_location:location
            | 'a' .. 'z' | 'A' .. 'Z' | '<' | '>' | '/' ->
-             text rest (String.of_char char) location
-           | _ -> raise (TokenizerUnexpected char_loc))
+             text chars (String.of_char char) location
+           | _ -> raise (Unexpected char_loc))
         | None -> ()
       and left_curly chars ~start_location =
         match Sequence.next chars with
-        | Some (('{', _), rest) ->
+        | Some (('{', _), chars) ->
           yield { kind = LeftCurly; location = start_location };
-          main rest
-        | Some (c, _) -> raise (TokenizerUnexpected c)
-        | None ->
-          raise (TokenizerExpectedOneOf ([ '{' ], Location.increment_col start_location))
+          default chars
+        | Some (c, _) -> raise (Unexpected c)
+        | None -> raise (ExpectedOneOf ([ '{' ], Location.increment_col start_location))
       and right_curly chars ~start_location =
         match Sequence.next chars with
-        | Some (('}', _), rest) ->
+        | Some (('}', _), chars) ->
           yield { kind = RightCurly; location = start_location };
-          main rest
-        | Some (c, _) -> raise (TokenizerUnexpected c)
-        | None ->
-          raise (TokenizerExpectedOneOf ([ '}' ], Location.increment_col start_location))
+          default chars
+        | Some (c, _) -> raise (Unexpected c)
+        | None -> raise (ExpectedOneOf ([ '}' ], Location.increment_col start_location))
       and text chars id location =
         match Sequence.next chars with
         | None -> yield { kind = Text id; location }
-        | Some ((char, _), rest) ->
+        | Some ((char, _), chars) ->
           (match char with
            | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '<' | '>' | '/' ->
-             text rest (id ^ String.of_char char) location
+             text chars (id ^ String.of_char char) location
            | _ ->
              yield { kind = Text id; location };
-             main chars)
+             default chars)
       in
-      main chars_with_location
+      default chars
     in
-    try Ok (Sequence.of_iterator computation) with
-    | TokenizerExpectedOneOf (chars, location) ->
-      Error { error_kind = `TokenizerExpectedOneOf chars; location }
-    | TokenizerUnexpected (char, location) ->
-      Error { error_kind = `TokenizerUnexpected char; location }
+    let chars = with_location chars in
+    try Ok (Sequence.of_iterator (computation chars)) with
+    | ExpectedOneOf (chars, location) -> Error (`TokenizerExpectedOneOf (chars, location))
+    | Unexpected (char, location) -> Error (`TokenizerUnexpected (char, location))
   ;;
 
   let%test_unit "tokenizer_basic" =
     let string = "{{foo}}" in
     let result =
-      string |> Location.with_location |> tokenize |> Result.map ~f:Sequence.to_list
+      string |> String.to_sequence |> tokenize |> Result.map ~f:Sequence.to_list
     in
     [%test_eq: (token list, error) result]
       result
@@ -144,7 +126,7 @@ module Tokenizer = struct
   let%test_unit "tokenizer_left_angle" =
     let string = "<{{foo}}" in
     let result =
-      string |> Location.with_location |> tokenize |> Result.map ~f:Sequence.to_list
+      string |> String.to_sequence |> tokenize |> Result.map ~f:Sequence.to_list
     in
     [%test_eq: (token list, error) result]
       result
@@ -158,24 +140,20 @@ module Tokenizer = struct
 end
 
 module Templating = struct
-  type error_kind =
-    [ `Unexpected of string
-    | `VariableNotFound of string
-    | `FinishedUnexpectedly
+  type error =
+    [ `TemplatingUnexpected of Tokenizer.kind * location
+    | `TemplatingVariableNotFound of string * location
+    | `TemplatingFinishedUnexpectedly of location
     ]
   [@@deriving sexp, compare]
 
-  type error =
-    { error_kind : error_kind
-    ; location : location
-    }
-  [@@deriving sexp, compare]
-
   let perform ~(tokens : Tokenizer.token Sequence.t) (context : context)
-    : (string Sequence.t, error) result
+    : (string Sequence.t, [> error ]) result
     =
     let open struct
-      exception TokenizerException of error
+      exception Unexpected of Tokenizer.kind * location
+      exception VariableNotFound of string * location
+      exception FinishedUnexpectedly of location
     end in
     let computation yield =
       let rec default (tokens : Tokenizer.token Sequence.t) =
@@ -183,10 +161,7 @@ module Templating = struct
         | Some (({ kind; location } as token), tokens) ->
           (match kind with
            | LeftCurly -> variable tokens ~prev_location:(Tokenizer.end_location token)
-           | RightCurly ->
-             raise
-               (TokenizerException
-                  { error_kind = `Unexpected (kind |> Tokenizer.show); location })
+           | RightCurly -> raise (Unexpected (kind, location))
            | Text s ->
              yield s;
              default tokens)
@@ -197,7 +172,7 @@ module Templating = struct
           (match kind with
            | Text text ->
              if not (String.for_all text ~f:(fun c -> Char.is_alphanum c))
-             then raise (TokenizerException { error_kind = `Unexpected text; location });
+             then raise (Unexpected (kind, location));
              (match Map.find context text with
               | Some value ->
                 let replaced_text =
@@ -207,35 +182,24 @@ module Templating = struct
                 in
                 yield replaced_text;
                 right_curly tokens ~prev_location:Tokenizer.(end_location token)
-              | None ->
-                raise
-                  (TokenizerException { error_kind = `VariableNotFound text; location }))
-           | LeftCurly | RightCurly ->
-             raise
-               (TokenizerException
-                  { error_kind = `Unexpected (kind |> Tokenizer.show); location }))
-        | None ->
-          raise
-            (TokenizerException
-               { error_kind = `FinishedUnexpectedly; location = prev_location })
+              | None -> raise (VariableNotFound (text, location)))
+           | LeftCurly | RightCurly -> raise (Unexpected (kind, location)))
+        | None -> raise (FinishedUnexpectedly prev_location)
       and right_curly tokens ~prev_location =
         match Sequence.next tokens with
         | Some ({ kind; location }, tokens) ->
           (match kind with
            | RightCurly -> default tokens
-           | LeftCurly | Text _ ->
-             raise
-               (TokenizerException
-                  { error_kind = `Unexpected (kind |> Tokenizer.show); location }))
-        | None ->
-          raise
-            (TokenizerException
-               { error_kind = `FinishedUnexpectedly; location = prev_location })
+           | LeftCurly | Text _ -> raise (Unexpected (kind, location)))
+        | None -> raise (FinishedUnexpectedly prev_location)
       in
       default tokens
     in
     try Ok (Sequence.of_iterator computation) with
-    | TokenizerException error -> Error error
+    | Unexpected (kind, location) -> Error (`TemplatingUnexpected (kind, location))
+    | VariableNotFound (variable, location) ->
+      Error (`TemplatingVariableNotFound (variable, location))
+    | FinishedUnexpectedly location -> Error (`TemplatingFinishedUnexpectedly location)
   ;;
 
   (* TESTS *)
@@ -281,45 +245,33 @@ module Templating = struct
   ;;
 end
 
-type templating_error_kind =
-  [ Tokenizer.error_kind
-  | Templating.error_kind
+type error =
+  [ Tokenizer.error
+  | Templating.error
   ]
 [@@deriving sexp, compare]
 
-type templating_error =
-  { kind : templating_error_kind
-  ; position : location
-  }
-[@@deriving sexp, compare]
+let show_error error =
+  match error with
+  | _ -> failwith "TODO"
+;;
 
-type html_document = Soup.soup Soup.node
+let error_location _ = failwith "TODO"
 
 (* Traverses the document and performs templating on text nodes *)
 let run ~(template : string) ~(context : context) =
   let open Result.Let_syntax in
-  let chars_with_locations = template |> Location.with_location in
-  let%bind tokens =
-    Tokenizer.tokenize chars_with_locations
-    |> Result.map_error ~f:(fun (error : Tokenizer.error) ->
-      { kind = (error.error_kind : Tokenizer.error_kind :> templating_error_kind)
-      ; position = error.location
-      })
-  in
-  let%map strings =
-    Templating.perform ~tokens context
-    |> Result.map_error ~f:(fun (error : Templating.error) ->
-      { kind = (error.error_kind : Templating.error_kind :> templating_error_kind)
-      ; position = error.location
-      })
-  in
-  Sequence.fold strings ~init:"" ~f:String.append
+  let%bind tokens = Tokenizer.tokenize (template |> String.to_sequence) in
+  let%map strings = Templating.perform ~tokens context in
+  strings |> Sequence.to_list |> String.concat
 ;;
 
 let%test_unit "perform_templating_error_location" =
   let template = "<html><head></head><body>{{/}}</body></html>" in
   let context = Map.empty in
   let actual = run ~template ~context in
-  let expected = Error { kind = `Unexpected "/"; position = { line = 0; column = 27 } } in
-  [%test_eq: (string, templating_error) result] actual expected
+  let expected =
+    Error (`TemplatingUnexpected (Tokenizer.Text "/", { line = 0; column = 27 }))
+  in
+  [%test_eq: (string, error) result] actual expected
 ;;
