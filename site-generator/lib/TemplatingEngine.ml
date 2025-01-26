@@ -73,7 +73,7 @@ module Tokenizer = struct
            | '{' -> left_curly chars ~start_location:location
            | '}' -> right_curly chars ~start_location:location
            | 'a' .. 'z' | 'A' .. 'Z' | '<' | '>' | '/' ->
-             text chars (String.of_char char) location
+             text chars (String.of_char char) ~start_location:location
            | _ -> raise (Unexpected char_loc))
         | None -> ()
       and left_curly chars ~start_location =
@@ -90,16 +90,16 @@ module Tokenizer = struct
           default chars
         | Some (c, _) -> raise (Unexpected c)
         | None -> raise (ExpectedOneOf ([ '}' ], Location.increment_col start_location))
-      and text chars id location =
+      and text chars acc ~start_location =
         match Sequence.next chars with
-        | None -> yield { kind = Text id; location }
-        | Some ((char, _), chars) ->
+        | None -> yield { kind = Text acc; location = start_location }
+        | Some (((char, _) as char_with_loc), chars) ->
           (match char with
            | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '<' | '>' | '/' ->
-             text chars (id ^ String.of_char char) location
+             text chars (acc ^ String.of_char char) ~start_location
            | _ ->
-             yield { kind = Text id; location };
-             default chars)
+             yield { kind = Text acc; location = start_location };
+             default (Sequence.shift_right chars char_with_loc))
       in
       default chars
     in
@@ -155,8 +155,9 @@ module Templating = struct
       exception VariableNotFound of string * location
       exception FinishedUnexpectedly of location
     end in
-    let computation yield =
-      let rec default (tokens : Tokenizer.token Sequence.t) =
+    let computation tokens yield =
+      let open Tokenizer in
+      let rec default tokens =
         match Sequence.next tokens with
         | Some (({ kind; location } as token), tokens) ->
           (match kind with
@@ -195,7 +196,7 @@ module Templating = struct
       in
       default tokens
     in
-    try Ok (Sequence.of_iterator computation) with
+    try Ok (Sequence.of_iterator (computation tokens)) with
     | Unexpected (kind, location) -> Error (`TemplatingUnexpected (kind, location))
     | VariableNotFound (variable, location) ->
       Error (`TemplatingVariableNotFound (variable, location))
@@ -258,7 +259,6 @@ let show_error error =
 
 let error_location _ = failwith "TODO"
 
-(* Traverses the document and performs templating on text nodes *)
 let run ~(template : string) ~(context : context) =
   let open Result.Let_syntax in
   let%bind tokens = Tokenizer.tokenize (template |> String.to_sequence) in
