@@ -180,8 +180,8 @@ module Templating = struct
     | Collection_t -> "Collection"
   ;;
 
-  type expected_type =
-    { expected : templating_type
+  type type_error_info =
+    { typ : templating_type
     ; location : location
     }
   [@@deriving sexp, compare]
@@ -190,11 +190,12 @@ module Templating = struct
     [ `TemplatingUnexpected of Tokenizer.kind * location
     | `TemplatingVariableNotFound of string * location
     | `TemplatingFinishedUnexpectedly of location
-    | `TemplatingExpectedType of expected_type
+    | `TemplatingExpectedType of type_error_info
+    | `TemplatingUnexpectedType of type_error_info
     ]
   [@@deriving sexp, compare]
 
-  let show_error error =
+  let show_error (error : error) =
     let prefix = "Templating Error:" in
     let message =
       match error with
@@ -205,10 +206,15 @@ module Templating = struct
           "Unexpected token %s %s"
           (kind |> Tokenizer.show_kind)
           (loc |> Location.show)
-      | `TemplatingExpectedType { expected; location } ->
+      | `TemplatingExpectedType { typ; location } ->
         sprintf
           "Expected template variable with type %s %s"
-          (expected |> show_templating_type)
+          (typ |> show_templating_type)
+          (location |> Location.show)
+      | `TemplatingUnexpectedType { typ; location } ->
+        sprintf
+          "Unexpected template variable with type %s %s"
+          (typ |> show_templating_type)
           (location |> Location.show)
       | `TemplatingVariableNotFound (variable, loc) ->
         sprintf "Variable %s not found %s" variable (loc |> Location.show)
@@ -216,15 +222,17 @@ module Templating = struct
     sprintf "%s %s" prefix message
   ;;
 
-  let substitute text context =
+  let substitute text context location =
     let open Option.Let_syntax in
-    let%map value =
-      NonEmptyStack.find_map context ~f:(fun context -> Map.find context text)
-    in
-    match value with
-    | String s -> s
-    | Number n -> string_of_float n
-    | Collection _ -> failwith "TODO: return unexpected type error"
+    match NonEmptyStack.find_map context ~f:(fun context -> Map.find context text) with
+    | None -> Error (`TemplatingVariableNotFound Tokenizer.(text, location))
+    | Some value ->
+      (match value with
+       | String s -> Ok s
+       | Number n -> Ok (string_of_float n)
+       (* I think  *)
+       | Collection _ ->
+         Error (`TemplatingUnexpectedType { typ = Collection_t; location }))
   ;;
 
   let iter
@@ -252,9 +260,9 @@ module Templating = struct
       let variable text token =
         if not (String.for_all text ~f:(fun c -> Char.is_alphanum c))
         then abort (`TemplatingUnexpected Tokenizer.(token.kind, token.location));
-        match substitute text context_stack with
-        | Some value -> f value
-        | None -> abort (`TemplatingVariableNotFound Tokenizer.(text, token.location))
+        match substitute text context_stack token.location with
+        | Ok value -> f value
+        | Error error -> abort error
       in
       match Sequence.next tokens with
       | Some (token, tokens) ->
@@ -330,7 +338,7 @@ module Templating = struct
         | _ ->
           abort
             (`TemplatingExpectedType
-                { expected = Collection_t; location = collection_location });
+                { typ = Collection_t; location = collection_location });
           failwith "Unreachable" (* TODO: Can't make abort polymorphic *)
       in
       (* For each item in the collection repeat *)
@@ -461,7 +469,7 @@ module Templating = struct
         let expected =
           Some
             (`TemplatingExpectedType
-                { expected = Collection_t; location = { line = 0; column = 0 } })
+                { typ = Collection_t; location = { line = 0; column = 0 } })
         in
         [%test_eq: error option] actual expected)
   ;;
@@ -480,6 +488,7 @@ let show_error (error : error) =
   | ( `TemplatingFinishedUnexpectedly _
     | `TemplatingUnexpected _
     | `TemplatingExpectedType _
+    | `TemplatingUnexpectedType _
     | `TemplatingVariableNotFound _ ) as error -> Templating.show_error error
 ;;
 
@@ -487,6 +496,7 @@ let error_location : error -> location = function
   | `TemplatingFinishedUnexpectedly loc
   | `TemplatingUnexpected (_, loc)
   | `TemplatingExpectedType { location = loc; _ }
+  | `TemplatingUnexpectedType { location = loc; _ }
   | `TemplatingVariableNotFound (_, loc)
   | `TokenizerExpectedOneOf (_, loc)
   | `TokenizerUnexpected (_, loc) -> loc
