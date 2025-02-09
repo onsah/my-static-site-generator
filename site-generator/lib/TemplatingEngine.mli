@@ -7,6 +7,7 @@ module Map = Core.Map.Poly
 type context_item =
   | String of string
   | Number of float
+  | Collection of context_item list
 
 (** Mapping from template variables to their values. *)
 type context = (string, context_item) Map.t

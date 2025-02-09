@@ -5,6 +5,7 @@ module Map = Core.Map.Poly
 type context_item =
   | String of string
   | Number of float
+  | Collection of context_item list
 
 type context = (string, context_item) Map.t
 
@@ -24,6 +25,9 @@ module Tokenizer = struct
     | Text of string
     | LeftCurly
     | RightCurly
+    | Foreach
+    | In
+    | End
   [@@deriving sexp, compare]
 
   type token =
@@ -42,6 +46,9 @@ module Tokenizer = struct
     let amount =
       match kind with
       | LeftCurly | RightCurly -> 2
+      | Foreach -> 7
+      | In -> 2
+      | End -> 3
       | Text text -> String.length text
     in
     Location.add_col location ~amount
@@ -88,16 +95,23 @@ module Tokenizer = struct
       | None ->
         abort (`TokenizerExpectedOneOf ([ '}' ], Location.increment_col start_location))
     and text chars acc ~start_location =
+      let kind_from_text text =
+        match text with
+        | "foreach" -> Foreach
+        | "in" -> In
+        | "end" -> End
+        | _ -> Text text
+      in
       match Sequence.next chars with
       | None ->
-        f { kind = Text acc; location = start_location };
+        f { kind = kind_from_text acc; location = start_location };
         ()
       | Some (((char, _) as char_with_loc), chars) ->
         (match char with
          | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '<' | '>' | '/' ->
            text chars (acc ^ String.of_char char) ~start_location
          | _ ->
-           f { kind = Text acc; location = start_location };
+           f { kind = kind_from_text acc; location = start_location };
            default (Sequence.shift_right chars char_with_loc))
     in
     chars |> with_location |> default
@@ -140,12 +154,30 @@ module Tokenizer = struct
 end
 
 module Templating = struct
+  type expected_type =
+    { expected : string
+    ; location : location
+    }
+  [@@deriving sexp, compare]
+
   type error =
     [ `TemplatingUnexpected of Tokenizer.kind * location
     | `TemplatingVariableNotFound of string * location
     | `TemplatingFinishedUnexpectedly of location
+    | `TemplatingExpectedType of expected_type
     ]
   [@@deriving sexp, compare]
+
+  let substitute text context =
+    let open Option.Let_syntax in
+    let%map value =
+      NonEmptyStack.find_map context ~f:(fun context -> Map.find context text)
+    in
+    match value with
+    | String s -> s
+    | Number n -> string_of_float n
+    | Collection _ -> failwith "TODO: return unexpected type error"
+  ;;
 
   let iter
         (tokens : Tokenizer.token Sequence.t)
@@ -154,44 +186,111 @@ module Templating = struct
         (abort : error -> unit)
     : unit
     =
-    let rec default tokens =
+    let rec default tokens context_stack =
       match Sequence.next tokens with
       | Some ((Tokenizer.{ kind; location } as token), tokens) ->
         (match kind with
-         | LeftCurly -> variable tokens ~prev_location:(Tokenizer.end_location token)
-         | RightCurly -> abort (`TemplatingUnexpected (kind, location))
+         | LeftCurly ->
+           templating tokens context_stack ~prev_location:(Tokenizer.end_location token)
          | Text s ->
            f s;
-           default tokens)
+           default tokens context_stack
+         | End ->
+           exit_scope tokens context_stack ~prev_location:(Tokenizer.end_location token)
+         | _ -> abort (`TemplatingUnexpected (kind, location)))
+        (* TODO: check if we have only single context on the context *)
       | None -> ()
-    and variable tokens ~prev_location =
+    and templating tokens context_stack ~prev_location =
+      let variable text token =
+        if not (String.for_all text ~f:(fun c -> Char.is_alphanum c))
+        then abort (`TemplatingUnexpected Tokenizer.(token.kind, token.location));
+        match substitute text context_stack with
+        | Some value -> f value
+        | None -> abort (`TemplatingVariableNotFound Tokenizer.(text, token.location))
+      in
       match Sequence.next tokens with
-      | Some ((Tokenizer.{ kind; location } as token), tokens) ->
-        (match kind with
+      | Some (token, tokens) ->
+        (match token.kind with
          | Text text ->
-           if not (String.for_all text ~f:(fun c -> Char.is_alphanum c))
-           then abort (`TemplatingUnexpected (kind, location));
-           (match Map.find context text with
-            | Some value ->
-              let replaced_text =
-                match value with
-                | String s -> s
-                | Number n -> string_of_float n
-              in
-              f replaced_text;
-              right_curly tokens ~prev_location:Tokenizer.(end_location token)
-            | None -> abort (`TemplatingVariableNotFound (text, location)))
-         | LeftCurly | RightCurly -> abort (`TemplatingUnexpected (kind, location)))
+           variable text token;
+           right_curly tokens context_stack ~prev_location:(Tokenizer.end_location token)
+         | Foreach ->
+           foreach_var tokens context_stack ~prev_location:(Tokenizer.end_location token)
+         | _ -> abort (`TemplatingUnexpected (token.kind, token.location)))
       | None -> abort (`TemplatingFinishedUnexpectedly prev_location)
-    and right_curly tokens ~prev_location =
+    and right_curly tokens context_stack ~prev_location =
       match Sequence.next tokens with
-      | Some ({ kind; location }, tokens) ->
-        (match kind with
-         | RightCurly -> default tokens
-         | LeftCurly | Text _ -> abort (`TemplatingUnexpected (kind, location)))
+      | Some (token, tokens) ->
+        (match token.kind with
+         | RightCurly -> default tokens context_stack
+         | _ -> abort (`TemplatingUnexpected (token.kind, token.location)))
       | None -> abort (`TemplatingFinishedUnexpectedly prev_location)
+    and foreach_var tokens context_stack ~prev_location =
+      match Sequence.next tokens with
+      | Some (token, tokens) ->
+        (match token.kind with
+         | Text var_name ->
+           foreach_in
+             tokens
+             context_stack
+             ~prev_location:(Tokenizer.end_location token)
+             ~var_name
+         | _ -> abort (`TemplatingUnexpected (token.kind, token.location)))
+      | None -> abort (`TemplatingFinishedUnexpectedly prev_location)
+    and foreach_in tokens context_stack ~prev_location ~var_name =
+      match Sequence.next tokens with
+      | Some (token, tokens) ->
+        (match token.kind with
+         | In ->
+           foreach_collection
+             tokens
+             context_stack
+             ~prev_location:(Tokenizer.end_location token)
+             ~var_name
+         | _ -> abort (`TemplatingUnexpected (token.kind, token.location)))
+      | None -> abort (`TemplatingFinishedUnexpectedly prev_location)
+    and foreach_collection tokens context_stack ~prev_location ~var_name =
+      match Sequence.next tokens with
+      | Some (token, tokens) ->
+        (match token.kind with
+         | Text collection_name ->
+           foreach_enter tokens context_stack ~prev_location ~var_name ~collection_name
+         | _ -> abort (`TemplatingUnexpected (token.kind, token.location)))
+      | None -> abort (`TemplatingFinishedUnexpectedly prev_location)
+    and foreach_enter tokens context_stack ~prev_location ~var_name ~collection_name =
+      (* Push scope *)
+      let items =
+        NonEmptyStack.find_map context_stack ~f:(fun context ->
+          Map.find context collection_name)
+      in
+      let items =
+        match items with
+        | Some items -> items
+        | None ->
+          abort (`TemplatingVariableNotFound (collection_name, prev_location));
+          failwith "Unreachable" (* TODO: Can't make abort polymorphic *)
+      in
+      let items =
+        match items with
+        | Collection items -> items
+        | _ ->
+          abort
+            (`TemplatingExpectedType { expected = "collection"; location = prev_location });
+          failwith "Unreachable" (* TODO: Can't make abort polymorphic *)
+      in
+      (* For each item in the collection repeat *)
+      items
+      |> List.iter ~f:(fun item ->
+        scope_enter tokens context_stack (Map.of_alist_exn [ var_name, item ]))
+    and scope_enter tokens context_stack new_context =
+      let context_stack = NonEmptyStack.push context_stack new_context in
+      default tokens context_stack
+    and exit_scope tokens context_stack ~prev_location =
+      match NonEmptyStack.pop context_stack with
+      | _, None -> failwith "TODO: Exited top level context"
+      | _, Some context_stack -> right_curly tokens context_stack ~prev_location
     in
-    default tokens
+    default tokens (NonEmptyStack.make context)
   ;;
 
   let perform ~(tokens : Tokenizer.token Sequence.t) (context : context)
@@ -209,6 +308,8 @@ module Templating = struct
     let rest = String.gen_with_length 4 Quickcheck.Generator.char_alphanum in
     Quickcheck.Generator.map2 first rest ~f:(sprintf "%c%s")
   ;;
+
+  let floats_generator n = List.gen_with_length n Float.gen_finite
 
   let%test_unit "perform_templating_string_alphanum" =
     Quickcheck.test
@@ -241,6 +342,42 @@ module Templating = struct
         let result = perform ~tokens context in
         let actual = result |> Result.ok |> Option.value_exn |> Sequence.to_list in
         let expected = [ s2 ] in
+        [%test_eq: string list] actual expected)
+  ;;
+
+  let%test_unit "perform_templating_foreach" =
+    Quickcheck.test
+      ~trials:50
+      (Quickcheck.Generator.map3
+         str_generator
+         str_generator
+         (floats_generator 10)
+         ~f:(fun x y z -> x, y, z))
+      ~f:(fun (collection_name, item_name, items) ->
+        let tokens =
+          Sequence.of_list
+            Tokenizer.
+              [ LeftCurly
+              ; Foreach
+              ; Text item_name
+              ; In
+              ; Text collection_name
+              ; LeftCurly
+              ; Text item_name
+              ; RightCurly
+              ; End
+              ; RightCurly
+              ]
+          |> Sequence.map ~f:(fun kind ->
+            Tokenizer.{ kind; location = { line = 0; column = 0 } })
+        in
+        let context =
+          Map.of_alist_exn
+            [ collection_name, Collection (items |> List.map ~f:(fun i -> Number i)) ]
+        in
+        let result = perform ~tokens context in
+        let actual = result |> Result.ok |> Option.value_exn |> Sequence.to_list in
+        let expected = items |> List.map ~f:string_of_float in
         [%test_eq: string list] actual expected)
   ;;
 end
