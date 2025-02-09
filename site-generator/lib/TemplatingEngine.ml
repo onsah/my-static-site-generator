@@ -18,6 +18,7 @@ type location =
 module Location = struct
   let add_col loc ~amount = { loc with column = loc.column + amount }
   let increment_col = add_col ~amount:1
+  let show { line; column } = sprintf "at line %i, column %i" line column
 end
 
 module Tokenizer = struct
@@ -30,6 +31,15 @@ module Tokenizer = struct
     | End
   [@@deriving sexp, compare]
 
+  let show_kind : kind -> string = function
+    | Text text -> sprintf "\"%s\"" text
+    | LeftCurly -> "{{"
+    | RightCurly -> "}}"
+    | Foreach -> "foreach"
+    | In -> "in"
+    | End -> "end"
+  ;;
+
   type token =
     { kind : kind
     ; location : location
@@ -41,6 +51,16 @@ module Tokenizer = struct
     | `TokenizerUnexpected of char * location
     ]
   [@@deriving sexp, compare]
+
+  let show_error = function
+    | `TokenizerExpectedOneOf (chars, loc) ->
+      sprintf
+        "Tokenizer error: Expecting one of '%s' %s"
+        (chars |> List.map ~f:String.of_char |> String.concat ~sep:", ")
+        (loc |> Location.show)
+    | `TokenizerUnexpected (char, loc) ->
+      sprintf "Tokenizer error: Unexpected character '%c' %s" char (loc |> Location.show)
+  ;;
 
   let end_location { kind; location } =
     let amount =
@@ -167,6 +187,28 @@ module Templating = struct
     | `TemplatingExpectedType of expected_type
     ]
   [@@deriving sexp, compare]
+
+  let show_error error =
+    let prefix = "Templating Error:" in
+    let message =
+      match error with
+      | `TemplatingFinishedUnexpectedly loc ->
+        sprintf "Finished Unexpectedly %s" (loc |> Location.show)
+      | `TemplatingUnexpected (kind, loc) ->
+        sprintf
+          "Unexpected token %s %s"
+          (kind |> Tokenizer.show_kind)
+          (loc |> Location.show)
+      | `TemplatingExpectedType { expected; location } ->
+        sprintf
+          "Expected template variable with type %s %s"
+          expected
+          (location |> Location.show)
+      | `TemplatingVariableNotFound (variable, loc) ->
+        sprintf "Variable %s not found %s" variable (loc |> Location.show)
+    in
+    sprintf "%s %s" prefix message
+  ;;
 
   let substitute text context =
     let open Option.Let_syntax in
@@ -388,12 +430,24 @@ type error =
   ]
 [@@deriving sexp, compare]
 
-let show_error error =
+let show_error (error : error) =
   match error with
-  | _ -> failwith "TODO"
+  | (`TokenizerExpectedOneOf _ | `TokenizerUnexpected _) as error ->
+    Tokenizer.show_error error
+  | ( `TemplatingFinishedUnexpectedly _
+    | `TemplatingUnexpected _
+    | `TemplatingExpectedType _
+    | `TemplatingVariableNotFound _ ) as error -> Templating.show_error error
 ;;
 
-let error_location _ = failwith "TODO"
+let error_location : error -> location = function
+  | `TemplatingFinishedUnexpectedly loc
+  | `TemplatingUnexpected (_, loc)
+  | `TemplatingExpectedType { location = loc; _ }
+  | `TemplatingVariableNotFound (_, loc)
+  | `TokenizerExpectedOneOf (_, loc)
+  | `TokenizerUnexpected (_, loc) -> loc
+;;
 
 let run ~(template : string) ~(context : context) =
   let open Result.Let_syntax in
