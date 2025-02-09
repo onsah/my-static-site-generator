@@ -174,8 +174,14 @@ module Tokenizer = struct
 end
 
 module Templating = struct
+  type templating_type = Collection_t [@@deriving sexp, compare]
+
+  let show_templating_type = function
+    | Collection_t -> "Collection"
+  ;;
+
   type expected_type =
-    { expected : string
+    { expected : templating_type
     ; location : location
     }
   [@@deriving sexp, compare]
@@ -202,7 +208,7 @@ module Templating = struct
       | `TemplatingExpectedType { expected; location } ->
         sprintf
           "Expected template variable with type %s %s"
-          expected
+          (expected |> show_templating_type)
           (location |> Location.show)
       | `TemplatingVariableNotFound (variable, loc) ->
         sprintf "Variable %s not found %s" variable (loc |> Location.show)
@@ -296,10 +302,16 @@ module Templating = struct
       | Some (token, tokens) ->
         (match token.kind with
          | Text collection_name ->
-           foreach_enter tokens context_stack ~prev_location ~var_name ~collection_name
+           foreach_enter
+             tokens
+             context_stack
+             ~var_name
+             ~collection_name
+             ~collection_location:token.location
          | _ -> abort (`TemplatingUnexpected (token.kind, token.location)))
       | None -> abort (`TemplatingFinishedUnexpectedly prev_location)
-    and foreach_enter tokens context_stack ~prev_location ~var_name ~collection_name =
+    and foreach_enter tokens context_stack ~var_name ~collection_name ~collection_location
+      =
       (* Push scope *)
       let items =
         NonEmptyStack.find_map context_stack ~f:(fun context ->
@@ -309,7 +321,7 @@ module Templating = struct
         match items with
         | Some items -> items
         | None ->
-          abort (`TemplatingVariableNotFound (collection_name, prev_location));
+          abort (`TemplatingVariableNotFound (collection_name, collection_location));
           failwith "Unreachable" (* TODO: Can't make abort polymorphic *)
       in
       let items =
@@ -317,7 +329,8 @@ module Templating = struct
         | Collection items -> items
         | _ ->
           abort
-            (`TemplatingExpectedType { expected = "collection"; location = prev_location });
+            (`TemplatingExpectedType
+                { expected = Collection_t; location = collection_location });
           failwith "Unreachable" (* TODO: Can't make abort polymorphic *)
       in
       (* For each item in the collection repeat *)
@@ -421,6 +434,36 @@ module Templating = struct
         let actual = result |> Result.ok |> Option.value_exn |> Sequence.to_list in
         let expected = items |> List.map ~f:string_of_float in
         [%test_eq: string list] actual expected)
+  ;;
+
+  let%test_unit "perform_templating_foreach_unexpected_type" =
+    Quickcheck.test
+      ~trials:50
+      (Quickcheck.Generator.both str_generator str_generator)
+      ~f:(fun (var_name, collection_name) ->
+        let tokens =
+          Sequence.of_list
+            Tokenizer.
+              [ LeftCurly
+              ; Foreach
+              ; Text var_name
+              ; In
+              ; Text collection_name
+              ; End
+              ; RightCurly
+              ]
+          |> Sequence.map ~f:(fun kind ->
+            Tokenizer.{ kind; location = { line = 0; column = 0 } })
+        in
+        let context = Map.of_alist_exn [ collection_name, Number 0. ] in
+        let result = perform ~tokens context in
+        let actual = result |> Result.error in
+        let expected =
+          Some
+            (`TemplatingExpectedType
+                { expected = Collection_t; location = { line = 0; column = 0 } })
+        in
+        [%test_eq: error option] actual expected)
   ;;
 end
 
