@@ -87,7 +87,11 @@ module Tokenizer = struct
         next_loc, (char, loc))
   ;;
 
-  let iter (chars : char Sequence.t) (f : token -> unit) (abort : error -> unit) : unit =
+  let iter
+        (chars : char Sequence.t)
+        ({ yield; abort } : (token, error) Sequence.fallible_iter_args)
+    : unit
+    =
     let rec default chars =
       match Sequence.next chars with
       | Some (((char, location) as char_loc), chars) ->
@@ -101,7 +105,7 @@ module Tokenizer = struct
     and left_curly chars ~start_location =
       match Sequence.next chars with
       | Some (('{', _), chars) ->
-        f { kind = LeftCurly; location = start_location };
+        yield { kind = LeftCurly; location = start_location };
         default chars
       | Some (c, _) -> abort (`TokenizerUnexpected c)
       | None ->
@@ -109,7 +113,7 @@ module Tokenizer = struct
     and right_curly chars ~start_location =
       match Sequence.next chars with
       | Some (('}', _), chars) ->
-        f { kind = RightCurly; location = start_location };
+        yield { kind = RightCurly; location = start_location };
         default chars
       | Some (c, _) -> abort (`TokenizerUnexpected c)
       | None ->
@@ -124,14 +128,14 @@ module Tokenizer = struct
       in
       match Sequence.next chars with
       | None ->
-        f { kind = kind_from_text acc; location = start_location };
+        yield { kind = kind_from_text acc; location = start_location };
         ()
       | Some (((char, _) as char_with_loc), chars) ->
         (match char with
          | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '<' | '>' | '/' ->
            text chars (acc ^ String.of_char char) ~start_location
          | _ ->
-           f { kind = kind_from_text acc; location = start_location };
+           yield { kind = kind_from_text acc; location = start_location };
            default (Sequence.shift_right chars char_with_loc))
     in
     chars |> with_location |> default
@@ -236,8 +240,7 @@ module Templating = struct
   let iter
         (tokens : Tokenizer.token Sequence.t)
         (context : context)
-        (f : string -> unit)
-        (abort : error -> unit)
+        ({ yield; abort } : (string, error) Sequence.fallible_iter_args)
     : unit
     =
     let rec default tokens context_stack =
@@ -247,7 +250,7 @@ module Templating = struct
          | LeftCurly ->
            templating tokens context_stack ~prev_location:(Tokenizer.end_location token)
          | Text s ->
-           f s;
+           yield s;
            default tokens context_stack
          | End ->
            exit_scope tokens context_stack ~prev_location:(Tokenizer.end_location token)
@@ -260,7 +263,7 @@ module Templating = struct
         if not (String.for_all text ~f:(fun c -> Char.is_alphanum c))
         then abort (`TemplatingUnexpected Tokenizer.(token.kind, token.location));
         match substitute text context_stack token.location with
-        | Ok value -> f value
+        | Ok value -> yield value
         | Error error -> abort error
       in
       match Sequence.next tokens with
@@ -328,8 +331,7 @@ module Templating = struct
         match items with
         | Some items -> items
         | None ->
-          abort (`TemplatingVariableNotFound (collection_name, collection_location));
-          failwith "Unreachable" (* TODO: Can't make abort polymorphic *)
+          abort (`TemplatingVariableNotFound (collection_name, collection_location))
       in
       let items =
         match items with
@@ -337,8 +339,7 @@ module Templating = struct
         | _ ->
           abort
             (`TemplatingExpectedType
-                { typ = Collection_t; location = collection_location });
-          failwith "Unreachable" (* TODO: Can't make abort polymorphic *)
+                { typ = Collection_t; location = collection_location })
       in
       (* For each item in the collection repeat *)
       items

@@ -25,19 +25,25 @@ let of_iterator (type a) (iter : a iterator) : a t =
     }
 ;;
 
-type ('a, 'b) fallibe_iterator = ('a -> unit) -> ('b -> unit) -> unit
+type ('a, 'b) fallible_iter_args =
+  { yield : 'a -> unit
+  ; abort : 'c. 'b -> 'c
+  }
+
+type ('a, 'b) fallibe_iterator = ('a, 'b) fallible_iter_args -> unit
 
 let of_fallible_iterator (type a b) (iter : (a, b) fallibe_iterator) : (a t, b) result =
   let open Effect in
   let open Effect.Deep in
   let open struct
     type _ Effect.t += Yield : a -> unit Effect.t
-    type _ Effect.t += Abort : b -> unit Effect.t
+
+    exception Abort of b
   end in
   let yield x = perform (Yield x) in
-  let abort x = perform (Abort x) in
+  let abort x = raise (Abort x) in
   match_with
-    (fun () -> iter yield abort)
+    (fun () -> iter { yield; abort })
     ()
     { retc = (fun _ -> Ok empty)
     ; effc =
@@ -50,8 +56,10 @@ let of_fallible_iterator (type a b) (iter : (a, b) fallibe_iterator) : (a t, b) 
                 let open Core.Result.Let_syntax in
                 let%map rest = continue k () in
                 append (Sequence.return x) rest)
-          | Abort error -> Some (fun _ -> Error error)
           | _ -> None)
-    ; exnc = raise
+    ; exnc =
+        (function
+          | Abort error -> Error error
+          | exn -> raise exn)
     }
 ;;
