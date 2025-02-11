@@ -223,14 +223,12 @@ module Templating = struct
   ;;
 
   let substitute text context location =
-    let open Option.Let_syntax in
     match NonEmptyStack.find_map context ~f:(fun context -> Map.find context text) with
-    | None -> Error (`TemplatingVariableNotFound Tokenizer.(text, location))
+    | None -> Error (`TemplatingVariableNotFound (text, location))
     | Some value ->
       (match value with
        | String s -> Ok s
        | Number n -> Ok (string_of_float n)
-       (* I think  *)
        | Collection _ ->
          Error (`TemplatingUnexpectedType { typ = Collection_t; location }))
   ;;
@@ -254,8 +252,9 @@ module Templating = struct
          | End ->
            exit_scope tokens context_stack ~prev_location:(Tokenizer.end_location token)
          | _ -> abort (`TemplatingUnexpected (kind, location)))
-        (* TODO: check if we have only single context on the context *)
-      | None -> ()
+      | None ->
+        ();
+        assert (context_stack |> NonEmptyStack.pop |> snd |> Option.is_none)
     and templating tokens context_stack ~prev_location =
       let variable text token =
         if not (String.for_all text ~f:(fun c -> Char.is_alphanum c))
@@ -350,7 +349,7 @@ module Templating = struct
       default tokens context_stack
     and exit_scope tokens context_stack ~prev_location =
       match NonEmptyStack.pop context_stack with
-      | _, None -> failwith "TODO: Exited top level context"
+      | _, None -> failwith "Exited top level context while still parsing, this is a bug."
       | _, Some context_stack -> right_curly tokens context_stack ~prev_location
     in
     default tokens (NonEmptyStack.make context)
