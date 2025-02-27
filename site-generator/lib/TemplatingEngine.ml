@@ -6,6 +6,7 @@ type context_item =
   | String of string
   | Number of float
   | Collection of context_item list
+  | Object of (string, context_item) Map.t
 
 type context = (string, context_item) Map.t
 
@@ -29,6 +30,7 @@ module Tokenizer = struct
     | Foreach
     | In
     | End
+    | Dot
   [@@deriving sexp, compare]
 
   let show_kind : kind -> string = function
@@ -38,6 +40,7 @@ module Tokenizer = struct
     | Foreach -> "foreach"
     | In -> "in"
     | End -> "end"
+    | Dot -> "."
   ;;
 
   type token =
@@ -70,6 +73,7 @@ module Tokenizer = struct
       | In -> 2
       | End -> 3
       | Text text -> String.length text
+      | Dot -> 1
     in
     Location.add_col location ~amount
   ;;
@@ -134,6 +138,12 @@ module Tokenizer = struct
         (match char with
          | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '<' | '>' | '/' ->
            text chars (acc ^ String.of_char char) ~start_location
+         | '.' ->
+           let text_token = { kind = kind_from_text acc; location = start_location } in
+           let dot_token = { kind = Dot; location = end_location text_token } in
+           yield text_token;
+           yield dot_token;
+           text chars "" ~start_location:(end_location dot_token)
          | _ ->
            yield { kind = kind_from_text acc; location = start_location };
            default (Sequence.shift_right chars char_with_loc))
@@ -175,13 +185,28 @@ module Tokenizer = struct
          ; { kind = RightCurly; location = { line = 0; column = 6 } }
          ])
   ;;
+
+  let%test_unit "tokenizer_dot" =
+    let string = "foo.bar" in
+    [%test_eq: (token list, error) result]
+      (string |> String.to_sequence |> tokenize |> Result.map ~f:Sequence.to_list)
+      (Ok
+         [ { kind = Text "foo"; location = { line = 0; column = 0 } }
+         ; { kind = Dot; location = { line = 0; column = 3 } }
+         ; { kind = Text "bar"; location = { line = 0; column = 4 } }
+         ])
+  ;;
 end
 
 module Templating = struct
-  type templating_type = Collection_t [@@deriving sexp, compare]
+  type templating_type =
+    | Collection_t
+    | Object_t
+  [@@deriving sexp, compare]
 
   let show_templating_type = function
     | Collection_t -> "Collection"
+    | Object_t -> "Object"
   ;;
 
   type type_error_info =
@@ -226,15 +251,43 @@ module Templating = struct
     sprintf "%s %s" prefix message
   ;;
 
-  let substitute text context location =
-    match NonEmptyStack.find_map context ~f:(fun context -> Map.find context text) with
-    | None -> Error (`TemplatingVariableNotFound (text, location))
-    | Some value ->
-      (match value with
-       | String s -> Ok s
-       | Number n -> Ok (string_of_float n)
-       | Collection _ ->
-         Error (`TemplatingUnexpectedType { typ = Collection_t; location }))
+  let substitute (path : string list) context location =
+    let rec prop_access obj path =
+      match path with
+      | [] -> Error (`TemplatingUnexpectedType { typ = Collection_t; location })
+      | prop :: path ->
+        (match Map.find obj prop with
+         | Some value ->
+           (match value with
+            | String s -> Ok s
+            | Object obj -> prop_access obj path
+            | Number n -> Ok (string_of_float n)
+            | Collection _ ->
+              Error (`TemplatingUnexpectedType { typ = Collection_t; location }))
+         | _ -> failwith "TODO: Error handling")
+    in
+    match path with
+    | [] -> failwith "Bug: Empty path"
+    | text :: path ->
+      let open Result.Let_syntax in
+      let%bind () =
+        if String.for_all text ~f:Char.is_alphanum
+        then Ok ()
+        else Error (`TemplatingUnexpected (Tokenizer.Text text, location))
+      in
+      (match NonEmptyStack.find_map context ~f:(fun context -> Map.find context text) with
+       | None -> Error (`TemplatingVariableNotFound (text, location))
+       | Some value ->
+         (match value with
+          | String s ->
+            assert (List.is_empty path);
+            Ok s
+          | Number n ->
+            assert (List.is_empty path);
+            Ok (string_of_float n)
+          | Collection _ ->
+            Error (`TemplatingUnexpectedType { typ = Collection_t; location })
+          | Object obj -> prop_access obj path))
   ;;
 
   let iter
@@ -259,19 +312,26 @@ module Templating = struct
         ();
         assert (context_stack |> NonEmptyStack.pop |> snd |> Option.is_none)
     and templating tokens context_stack ~prev_location =
-      let variable text token =
-        if not (String.for_all text ~f:(fun c -> Char.is_alphanum c))
-        then abort (`TemplatingUnexpected Tokenizer.(token.kind, token.location));
-        match substitute text context_stack token.location with
-        | Ok value -> yield value
-        | Error error -> abort error
+      let rec path acc token tokens =
+        let open Tokenizer in
+        match Sequence.next tokens with
+        | Some ({ kind = Dot; _ }, tokens) ->
+          (match Sequence.next tokens with
+           | Some (({ kind = Text text; _ } as token), tokens) ->
+             path (List.append acc [ text ]) token tokens
+           | Some (token, _) -> abort (`TemplatingUnexpected (token.kind, token.location))
+           | None -> abort (`TemplatingFinishedUnexpectedly token.location))
+        | Some _ ->
+          (match substitute acc context_stack token.location with
+           | Ok result -> yield result
+           | Error error -> abort error);
+          right_curly tokens context_stack ~prev_location:(Tokenizer.end_location token)
+        | None -> abort (`TemplatingFinishedUnexpectedly token.location)
       in
       match Sequence.next tokens with
       | Some (token, tokens) ->
         (match token.kind with
-         | Text text ->
-           variable text token;
-           right_curly tokens context_stack ~prev_location:(Tokenizer.end_location token)
+         | Text text -> path [ text ] token tokens
          | Foreach ->
            foreach_var tokens context_stack ~prev_location:(Tokenizer.end_location token)
          | _ -> abort (`TemplatingUnexpected (token.kind, token.location)))
@@ -473,6 +533,35 @@ module Templating = struct
         in
         [%test_eq: error option] actual expected)
   ;;
+
+  let%test_unit "perform_templating_object" =
+    Quickcheck.test
+      ~trials:50
+      (Quickcheck.Generator.map3
+         str_generator
+         str_generator
+         Float.quickcheck_generator
+         ~f:(fun x y z -> x, y, z))
+      ~f:(fun (obj_name, field_name, value) ->
+        let tokens =
+          Sequence.of_list
+            Tokenizer.[ LeftCurly; Text obj_name; Dot; Text field_name; RightCurly ]
+          |> Sequence.map ~f:(fun kind ->
+            Tokenizer.{ kind; location = { line = 0; column = 0 } })
+        in
+        let context =
+          Map.of_alist_exn
+            [ obj_name, Object (Map.of_alist_exn [ field_name, Number value ]) ]
+        in
+        let actual =
+          perform ~tokens context
+          |> Result.map ~f:(fun seq -> seq |> Sequence.to_list |> String.concat)
+        in
+        let expected = Ok (string_of_float value) in
+        [%test_eq: (string, error) result] actual expected)
+  ;;
+
+  (* TODO: test object access templating *)
 end
 
 type error =

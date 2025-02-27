@@ -8,6 +8,7 @@ type context_item =
   | String of string
   | Number of float
   | Collection of context_item list
+  | Object of (string, context_item) Map.t
 
 (** Mapping from template variables to their values. *)
 type context = (string, context_item) Map.t
