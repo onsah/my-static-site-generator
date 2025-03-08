@@ -8,7 +8,7 @@ Strangely, mainstream languages still suck at providing tools for good error han
 - Poor composability.
 - Too restrictive type systems.
 
-In this article series, I will try to describe what "error" really means in programming context. Then I will go about mainstream approaches to error handling, argue about their strengths and weaknesses. I won't say anything novel or groundbreaking. It will be more like documentation of what we know about error handling. It's also to help myself to organize my thoughts about error handling.
+In this article series, I will try to describe what "error" really means in programming context. Then I will go about mainstream approaches to error handling, argue about their strengths and weaknesses. I won't say anything novel or groundbreaking. I don't have answers on the best error handling approach. It will be more like documentation of what we know about error handling. It's also to help myself to organize my thoughts about error handling.
 
 ## Bugs and Recoverable Errors
 
