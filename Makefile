@@ -24,5 +24,5 @@ generate:
 serve: generate
 	miniserve $(website_path)/dist --index index.html --port 9090
 
-deploy:	build
+deploy:	generate
 	scripts/deploy.nu
