@@ -174,7 +174,7 @@ let generate_post_components_list ~(content_path : Path.t)
   let post_components_list =
     List.sort post_components_list
       ~compare:(fun { post = post1; _ } { post = post2; _ } ->
-        -(Date.compare post1.created_at post2.created_at))
+        -Date.compare post1.created_at post2.created_at)
   in
   post_components_list
 
