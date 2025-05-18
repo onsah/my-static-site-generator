@@ -9,10 +9,23 @@
         {{components.header}}
         <main class="container">
             <h1>Blog</h1>
-            {{foreach post in posts
-                {{post.title}}
-                {{components.preview}}
-            end}}
+            <div id="posts">
+                {{foreach post in posts
+                    <article>
+                        <hgroup>
+                            <h3>
+                                <a class="no-color">
+                                    {{post.title}}
+                                </a>
+                            </h3>
+                            <h4>
+                                Posted on {{post.createdat}}
+                            </h4>
+                        </hgroup>
+                        {{post.summary}}
+                    </article>
+                end}}
+            </div>
         </main>
     </body>
 </html>

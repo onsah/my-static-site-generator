@@ -260,13 +260,21 @@ let generate_context ~content_path : TemplatingEngine.context =
          |> DiskIO.list
          |> List.filter ~f:(fun path -> Path.ext path = "md")
          |> List.map ~f:(fun path ->
+           let base_name = Path.base_name path in
+           let post_text =
+             generate_html_from_markdown
+               ~markdown_str:(Path.join posts_path path |> DiskIO.read_all)
+           in
+           let metadata_path = Path.join posts_path (Path.from (base_name ^ ".json")) in
+           let metadata = metadata_path |> DiskIO.read_all |> Yojson.Basic.from_string in
+           let { title; created_at; _ } = parse_post_metadata ~metadata in
+           let summary = extract_summary ~post_component:(post_text |> Soup.parse) in
            Object
              (Map.of_alist_exn
-                [ "title", String (Path.base_name path)
-                ; ( "content"
-                  , String
-                      (generate_html_from_markdown
-                         ~markdown_str:(Path.join posts_path path |> DiskIO.read_all)) )
+                [ "title", String title
+                ; "createdat", String (created_at |> Date.to_string)
+                ; "summary", String summary
+                ; "content", String post_text
                 ]))) )
   in
   Map.of_alist_exn [ "components", Object components; index; posts ]
