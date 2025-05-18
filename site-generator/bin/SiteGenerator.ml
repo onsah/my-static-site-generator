@@ -1,4 +1,5 @@
 open Core
+open Templating_engine
 
 let ( = ) = Poly.( = )
 let ( $ ) = Soup.( $ )
@@ -40,7 +41,7 @@ let hydrate_index_page
 
 let clone_page (page : Site.page) : page = Soup.parse (Soup.to_string page)
 
-let generate_index_page ~(content_path : Path.t) =
+let _generate_index_page ~(content_path : Path.t) =
   let index_content_path =
     Path.join content_path (Path.from_parts [ "pages"; "index.md" ])
   in
@@ -190,7 +191,7 @@ let generate_post_components_list ~(content_path : Path.t) ~(header_component : 
   post_components_list
 ;;
 
-let generate_blog_page ~(content_path : Path.t) ~(header_component : Site.page) =
+let _generate_blog_page ~(content_path : Path.t) ~(header_component : Site.page) =
   let blog_page_path =
     Path.join content_path (Path.from_parts [ "templates"; "blog.html" ])
   in
@@ -232,10 +233,59 @@ let generate_font_files ~(content_path : Path.t) =
     { content = DiskIO.read_all path; path = Path.join (Path.from "fonts") name })
 ;;
 
+let generate_context ~content_path : TemplatingEngine.context =
+  let module Map = Core.Map.Poly in
+  let open TemplatingEngine in
+  let components =
+    let components_path = Path.join content_path (Path.from "components") in
+    components_path
+    |> DiskIO.list
+    |> List.map ~f:(fun path ->
+      Path.base_name path, String (DiskIO.read_all (Path.join components_path path)))
+    |> Map.of_alist_exn
+  in
+  let pages_path = Path.join content_path (Path.from "pages") in
+  let index =
+    ( "index"
+    , String
+        (generate_html_from_markdown
+           ~markdown_str:(Path.join pages_path (Path.from "index.md") |> DiskIO.read_all))
+    )
+  in
+  let posts =
+    ( "posts"
+    , let posts_path = Path.join pages_path (Path.from "posts") in
+      Collection
+        (posts_path
+         |> DiskIO.list
+         |> List.filter ~f:(fun path -> Path.ext path = "md")
+         |> List.map ~f:(fun path ->
+           Object
+             (Map.of_alist_exn
+                [ "title", String (Path.base_name path)
+                ; ( "content"
+                  , String
+                      (generate_html_from_markdown
+                         ~markdown_str:(Path.join posts_path path |> DiskIO.read_all)) )
+                ]))) )
+  in
+  Map.of_alist_exn [ "components", Object components; index; posts ]
+;;
+
 let generate ~content_path =
   let header_component = generate_header_component content_path ~current_section:Blog in
+  let context = generate_context ~content_path in
+  context |> TemplatingEngine.sexp_of_context |> Sexp.to_string |> print_endline;
+  let context = generate_context ~content_path in
   let index_file =
-    { content = generate_index_page ~content_path |> Soup.to_string
+    { content =
+        TemplatingEngine.run
+          ~template:
+            (Path.join content_path (Path.from_parts [ "templates"; "index.new.html" ])
+             |> DiskIO.read_all)
+          ~context
+        |> Result.map_error ~f:TemplatingEngine.show_error
+        |> Result.ok_or_failwith
     ; path = Path.from "index.html"
     }
   in
@@ -251,8 +301,13 @@ let generate ~content_path =
   in
   let blog_file =
     { content =
-        generate_blog_page ~content_path ~header_component:(clone_page header_component)
-        |> Soup.to_string
+        TemplatingEngine.run
+          ~template:
+            (Path.join content_path (Path.from_parts [ "templates"; "blog.new.html" ])
+             |> DiskIO.read_all)
+          ~context
+        |> Result.map_error ~f:TemplatingEngine.show_error
+        |> Result.ok_or_failwith
     ; path = Path.from "blog.html"
     }
   in
