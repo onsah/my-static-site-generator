@@ -274,6 +274,7 @@ let generate_context ~content_path : TemplatingEngine.context =
                 [ "title", String title
                 ; "createdat", String (created_at |> Date.to_string)
                 ; "summary", String summary
+                ; "path", String (post_path ~title)
                 ; "content", String post_text
                 ]))) )
   in
