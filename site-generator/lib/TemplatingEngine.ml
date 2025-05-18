@@ -7,8 +7,9 @@ type context_item =
   | Number of float
   | Collection of context_item list
   | Object of (string, context_item) Map.t
+[@@deriving sexp]
 
-type context = (string, context_item) Map.t
+type context = (string, context_item) Map.t [@@deriving sexp]
 
 type location =
   { line : int
@@ -102,7 +103,9 @@ module Tokenizer = struct
         (match char with
          | '{' -> left_curly chars ~start_location:location
          | '}' -> right_curly chars ~start_location:location
-         | 'a' .. 'z' | 'A' .. 'Z' | '<' | '>' | '/' ->
+         | 'a' .. 'z'
+         | 'A' .. 'Z'
+         | '<' | '>' | '/' | '\n' | ' ' | '=' | '"' | '\'' | '-' | ',' | '.' ->
            text chars (String.of_char char) ~start_location:location
          | _ -> abort (`TokenizerUnexpected char_loc))
       | None -> ()
@@ -304,6 +307,9 @@ module Templating = struct
            templating tokens context_stack ~prev_location:(Tokenizer.end_location token)
          | Text s ->
            yield s;
+           default tokens context_stack
+         | Dot ->
+           yield ".";
            default tokens context_stack
          | End ->
            exit_scope tokens context_stack ~prev_location:(Tokenizer.end_location token)

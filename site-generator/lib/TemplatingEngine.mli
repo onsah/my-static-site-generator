@@ -9,9 +9,10 @@ type context_item =
   | Number of float
   | Collection of context_item list
   | Object of (string, context_item) Map.t
+[@@deriving sexp]
 
 (** Mapping from template variables to their values. *)
-type context = (string, context_item) Map.t
+type context = (string, context_item) Map.t [@@deriving sexp]
 
 (** A position in the HTML document. *)
 type location =
