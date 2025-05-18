@@ -10,6 +10,8 @@ module Path : sig
   val parents : t -> t list
   val join : t -> t -> t
   val to_string : t -> string
+  val base_name : t -> string
+  val ext : t -> string
 end = struct
   type t =
     { parts : string list
@@ -61,6 +63,18 @@ end = struct
       in
       List.map result ~f:(fun parts -> { parts; is_relative = path.is_relative })
       |> List.rev
+  ;;
+
+  let base_name path =
+    match List.last path.parts with
+    | Some base_with_ext -> String.split base_with_ext ~on:'.' |> List.hd_exn
+    | None -> failwith "Path is empty"
+  ;;
+
+  let ext path =
+    match List.last path.parts with
+    | Some base_with_ext -> String.split base_with_ext ~on:'.' |> List.last_exn
+    | None -> failwith "Path is empty"
   ;;
 end
 
