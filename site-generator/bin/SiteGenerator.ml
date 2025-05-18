@@ -230,17 +230,21 @@ let generate_font_files ~(content_path : Path.t) =
     { content = DiskIO.read_all path; path = Path.join (Path.from "fonts") name })
 ;;
 
+let generate_components_context ~content_path : TemplatingEngine.context_item =
+  let module Map = Core.Map.Poly in
+  let open TemplatingEngine in
+  let components_path = Path.join content_path (Path.from "components") in
+  Object
+    (components_path
+     |> DiskIO.list
+     |> List.map ~f:(fun path ->
+       Path.base_name path, String (DiskIO.read_all (Path.join components_path path)))
+     |> Map.of_alist_exn)
+;;
+
 let generate_context ~content_path : TemplatingEngine.context =
   let module Map = Core.Map.Poly in
   let open TemplatingEngine in
-  let components =
-    let components_path = Path.join content_path (Path.from "components") in
-    components_path
-    |> DiskIO.list
-    |> List.map ~f:(fun path ->
-      Path.base_name path, String (DiskIO.read_all (Path.join components_path path)))
-    |> Map.of_alist_exn
-  in
   let pages_path = Path.join content_path (Path.from "pages") in
   let index =
     ( "index"
@@ -253,18 +257,27 @@ let generate_context ~content_path : TemplatingEngine.context =
     ( "posts"
     , let posts_path = Path.join pages_path (Path.from "posts") in
       Collection
-        (posts_path
-         |> DiskIO.list
-         |> List.filter ~f:(fun path -> Path.ext path = "md")
-         |> List.map ~f:(fun path ->
-           let base_name = Path.base_name path in
+        (let posts_with_metadata =
+           posts_path
+           |> DiskIO.list
+           |> List.filter ~f:(fun path -> Path.ext path = "md")
+           |> List.map ~f:(fun path ->
+             let base_name = Path.base_name path in
+             let metadata_path = Path.join posts_path (Path.from (base_name ^ ".json")) in
+             let metadata =
+               metadata_path |> DiskIO.read_all |> Yojson.Basic.from_string
+             in
+             let metadata = parse_post_metadata ~metadata in
+             path, metadata)
+           |> List.sort ~compare:(fun (_, metadata1) (_, metadata2) ->
+             Date.compare metadata2.created_at metadata1.created_at)
+         in
+         posts_with_metadata
+         |> List.map ~f:(fun (path, { title; created_at; _ }) ->
            let post_text =
              generate_html_from_markdown
                ~markdown_str:(Path.join posts_path path |> DiskIO.read_all)
            in
-           let metadata_path = Path.join posts_path (Path.from (base_name ^ ".json")) in
-           let metadata = metadata_path |> DiskIO.read_all |> Yojson.Basic.from_string in
-           let { title; created_at; _ } = parse_post_metadata ~metadata in
            let summary = extract_summary ~post_component:(post_text |> Soup.parse) in
            Object
              (Map.of_alist_exn
@@ -275,12 +288,11 @@ let generate_context ~content_path : TemplatingEngine.context =
                 ; "content", String post_text
                 ]))) )
   in
-  Map.of_alist_exn [ "components", Object components; index; posts ]
+  Map.of_alist_exn
+    [ "components", generate_components_context ~content_path; index; posts ]
 ;;
 
 let generate ~content_path =
-  let context = generate_context ~content_path in
-  context |> TemplatingEngine.sexp_of_context |> Sexp.to_string |> print_endline;
   let context = generate_context ~content_path in
   let index_file =
     { content =
@@ -319,31 +331,41 @@ let generate ~content_path =
   let post_files =
     let module Map = Core.Map.Poly in
     let posts_path = Path.join content_path (Path.from_parts [ "pages"; "posts" ]) in
-    DiskIO.list posts_path
-    |> List.filter ~f:(fun path -> Path.ext path = "md")
-    |> List.map ~f:(fun path ->
+    let posts_with_metadata =
+      posts_path
+      |> DiskIO.list
+      |> List.filter ~f:(fun path -> Path.ext path = "md")
+      |> List.map ~f:(fun path ->
+        let base_name = Path.base_name path in
+        let metadata_path = Path.join posts_path (Path.from (base_name ^ ".json")) in
+        let metadata = metadata_path |> DiskIO.read_all |> Yojson.Basic.from_string in
+        let metadata = parse_post_metadata ~metadata in
+        path, metadata)
+    in
+    posts_with_metadata
+    |> List.map ~f:(fun (path, { title; created_at }) ->
       let template =
         Path.join content_path (Path.from_parts [ "templates"; "post.new.html" ])
         |> DiskIO.read_all
       in
-      let base_name = Path.base_name path in
-      let metadata_path = Path.join posts_path (Path.from (base_name ^ ".json")) in
-      let metadata = metadata_path |> DiskIO.read_all |> Yojson.Basic.from_string in
-      let { title; created_at; _ } = parse_post_metadata ~metadata in
-      let content = DiskIO.read_all (Path.join posts_path path) in
+      let content =
+        generate_html_from_markdown
+          ~markdown_str:(DiskIO.read_all (Path.join posts_path path))
+      in
       let context =
         Map.of_alist_exn
           TemplatingEngine.
             [ "title", String title
             ; "createdat", String (created_at |> Date.to_string)
             ; "content", String content
+            ; "components", generate_components_context ~content_path
             ]
       in
       { content =
           TemplatingEngine.run ~template ~context
           |> Result.map_error ~f:TemplatingEngine.show_error
           |> Result.ok_or_failwith
-      ; path = Path.from_parts [ "posts"; base_name ]
+      ; path = post_path2 ~title
       })
   in
   (* let post_files =
