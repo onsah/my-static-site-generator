@@ -2,8 +2,17 @@
 
 .PHONY: test
 
-build:
+help: build
+	result/bin/website-generator -help
+
+build: format
 	dune build
+
+package:
+	nix-build
+
+watch:
+	dune build --watch
 
 format:
 	dune fmt
@@ -13,3 +22,9 @@ test:
 
 repl:
 	dune utop
+
+docs:
+	dune build @doc
+
+open-docs: docs
+	xdg-open _build/default/_doc/_html/index.html

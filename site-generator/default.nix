@@ -1,6 +1,6 @@
 {
   system ? builtins.currentSystem,
-  sources ? import ./npins,
+  sources ? import ../npins,
 }:
 let
   pkgs = import sources.nixpkgs { inherit system; };

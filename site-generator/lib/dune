@@ -1,0 +1,13 @@
+(library
+ (name templating_engine)
+ (public_name my_static_site_generator)
+ (inline_tests)
+ (preprocess
+  (pps
+   ppx_inline_test
+   ppx_assert
+   ppx_sexp_conv
+   ppx_variants_conv
+   ppx_let
+   ppx_compare))
+ (libraries core lambdasoup))

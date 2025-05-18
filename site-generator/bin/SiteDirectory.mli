@@ -1,6 +1,4 @@
-(** 
-    Creates the static site directory at the location `at`.
-*)
+(** Creates the static site directory at the location `at`. *)
 
 open! Core
 

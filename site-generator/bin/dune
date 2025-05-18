@@ -9,4 +9,5 @@
   yojson
   lambdasoup
   str
-  cmarkit))
+  cmarkit
+  templating_engine))

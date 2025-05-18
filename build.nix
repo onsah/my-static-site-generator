@@ -5,7 +5,7 @@
 }:
 let
   fileset = lib.fileset;
-  website-generator = callPackage ./site-generator/build.nix {  };
+  website-generator = callPackage ./site-generator/build.nix { };
 in
 stdenv.mkDerivation {
   name = "aiono-website";
