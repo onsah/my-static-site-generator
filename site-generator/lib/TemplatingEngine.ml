@@ -32,6 +32,8 @@ module Tokenizer = struct
     | In
     | End
     | Dot
+    | Space
+    | Newline
   [@@deriving sexp, compare]
 
   let show_kind : kind -> string = function
@@ -42,6 +44,8 @@ module Tokenizer = struct
     | In -> "in"
     | End -> "end"
     | Dot -> "."
+    | Space -> " "
+    | Newline -> "\n"
   ;;
 
   type token =
@@ -75,6 +79,8 @@ module Tokenizer = struct
       | End -> 3
       | Text text -> String.length text
       | Dot -> 1
+      | Space -> 1
+      | Newline -> 1
     in
     Location.add_col location ~amount
   ;;
@@ -103,10 +109,14 @@ module Tokenizer = struct
         (match char with
          | '{' -> left_curly chars ~start_location:location
          | '}' -> right_curly chars ~start_location:location
-         | 'a' .. 'z'
-         | 'A' .. 'Z'
-         | '<' | '>' | '/' | '\n' | ' ' | '=' | '"' | '\'' | '-' | ',' | '.' ->
-           text chars (String.of_char char) ~start_location:location
+         | ' ' ->
+           yield { kind = Space; location };
+           default chars
+         | '\n' ->
+           yield { kind = Newline; location };
+           default chars
+         | 'a' .. 'z' | 'A' .. 'Z' | '<' | '>' | '/' | '=' | '"' | '\'' | '-' | ',' | '.'
+           -> text chars (String.of_char char) ~start_location:location
          | _ -> abort (`TokenizerUnexpected char_loc))
       | None -> ()
     and left_curly chars ~start_location =
@@ -235,7 +245,7 @@ module Templating = struct
         sprintf "Finished Unexpectedly %s" (loc |> Location.show)
       | `TemplatingUnexpected (kind, loc) ->
         sprintf
-          "Unexpected token %s %s"
+          "Unexpected token '%s' %s"
           (kind |> Tokenizer.show_kind)
           (loc |> Location.show)
       | `TemplatingExpectedType { typ; location } ->
@@ -313,6 +323,12 @@ module Templating = struct
            default tokens context_stack
          | End ->
            exit_scope tokens context_stack ~prev_location:(Tokenizer.end_location token)
+         | Space ->
+           yield " ";
+           default tokens context_stack
+         | Newline ->
+           yield "\n";
+           default tokens context_stack
          | _ -> abort (`TemplatingUnexpected (kind, location)))
       | None ->
         ();
@@ -359,6 +375,7 @@ module Templating = struct
              context_stack
              ~prev_location:(Tokenizer.end_location token)
              ~var_name
+         | Space -> foreach_var tokens context_stack ~prev_location
          | _ -> abort (`TemplatingUnexpected (token.kind, token.location)))
       | None -> abort (`TemplatingFinishedUnexpectedly prev_location)
     and foreach_in tokens context_stack ~prev_location ~var_name =
@@ -371,6 +388,7 @@ module Templating = struct
              context_stack
              ~prev_location:(Tokenizer.end_location token)
              ~var_name
+         | Space -> foreach_in tokens context_stack ~prev_location ~var_name
          | _ -> abort (`TemplatingUnexpected (token.kind, token.location)))
       | None -> abort (`TemplatingFinishedUnexpectedly prev_location)
     and foreach_collection tokens context_stack ~prev_location ~var_name =
@@ -384,6 +402,7 @@ module Templating = struct
              ~var_name
              ~collection_name
              ~collection_location:token.location
+         | Space -> foreach_collection tokens context_stack ~prev_location ~var_name
          | _ -> abort (`TemplatingUnexpected (token.kind, token.location)))
       | None -> abort (`TemplatingFinishedUnexpectedly prev_location)
     and foreach_enter tokens context_stack ~var_name ~collection_name ~collection_location
@@ -407,10 +426,31 @@ module Templating = struct
             (`TemplatingExpectedType
                 { typ = Collection_t; location = collection_location })
       in
+      let foreach_tokens =
+        Sequence.take_while tokens ~f:(fun token ->
+          Tokenizer.(
+            match token.kind with
+            | End -> false
+            | _ -> true))
+      in
+      let tokens_after =
+        Sequence.drop_while tokens ~f:(fun token ->
+          Tokenizer.(
+            match token.kind with
+            | End -> false
+            | _ -> true))
+      in
+      let foreach_tokens =
+        Sequence.append foreach_tokens (Sequence.take tokens_after 2)
+      in
+      foreach_tokens
+      |> Sequence.iter ~f:(fun token ->
+        Tokenizer.(token.kind |> show_kind |> print_endline));
       (* For each item in the collection repeat *)
       items
       |> List.iter ~f:(fun item ->
-        scope_enter tokens context_stack (Map.of_alist_exn [ var_name, item ]))
+        scope_enter foreach_tokens context_stack (Map.of_alist_exn [ var_name, item ]));
+      default (Sequence.drop tokens_after 2) context_stack
     and scope_enter tokens context_stack new_context =
       let context_stack = NonEmptyStack.push context_stack new_context in
       default tokens context_stack
@@ -600,6 +640,12 @@ let error_location : error -> location = function
 let run ~(template : string) ~(context : context) =
   let open Result.Let_syntax in
   let%bind tokens = Tokenizer.tokenize (template |> String.to_sequence) in
+  let tokens =
+    tokens
+    |> Sequence.map ~f:(fun token ->
+      print_endline Tokenizer.(show_kind token.kind);
+      token)
+  in
   let%map strings = Templating.perform ~tokens context in
   strings |> Sequence.to_list |> String.concat
 ;;
