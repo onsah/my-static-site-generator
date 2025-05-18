@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-profile = janestreet
-=======
 profile = default
 version = 0.26.2
 type-decl = sparse
 break-cases = fit-or-vertical
->>>>>>> 302501b (chore: update .gitignore and format code for clarity)

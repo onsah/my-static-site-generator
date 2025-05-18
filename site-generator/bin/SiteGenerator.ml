@@ -5,8 +5,6 @@ let ( = ) = Poly.( = )
 
 open Site
 
-<<<<<<< HEAD
-=======
 type post_with_preview = {
   preview : Site.page;
   post : Site.post;
@@ -16,18 +14,11 @@ type current_section =
   | Me
   | Blog
 
->>>>>>> 302501b (chore: update .gitignore and format code for clarity)
 let generate_html_from_markdown ~markdown_str =
   let doc = Cmarkit.Doc.of_string ~layout:true ~strict:false markdown_str in
   Cmarkit_html.of_doc ~safe:false doc
 ;;
 
-<<<<<<< HEAD
-type post_metadata =
-  { title : string
-  ; created_at : Date.t
-  }
-=======
 let generate_header_component (content_path : Path.t)
     ~(current_section : current_section) =
   let path =
@@ -77,7 +68,6 @@ type post_metadata = {
   title : string;
   created_at : Date.t;
 }
->>>>>>> 302501b (chore: update .gitignore and format code for clarity)
 
 let parse_post_metadata ~(metadata : Yojson.Basic.t) : post_metadata =
   let extract_string_field ~fields ~field_name =
@@ -115,9 +105,6 @@ let extract_summary ~post_component =
   let component_text = post_component |> Soup.texts |> String.concat in
   let text_split = component_text |> String.split ~on:'.' in
   List.take text_split 3 @ [ "" ] |> String.concat ~sep:"."
-<<<<<<< HEAD
-;;
-=======
 
 let generate_post_components ~(content_path : Path.t)
     ~(metadata : Yojson.Basic.t) ~(post_component : Site.page)
@@ -216,7 +203,6 @@ let generate_posts ~(content_path : Path.t) ~(header_component : Site.page) =
     generate_post_components_list ~content_path ~header_component
   in
   List.map post_components_list ~f:(fun { post; _ } -> post)
->>>>>>> 302501b (chore: update .gitignore and format code for clarity)
 
 let generate_style ~(content_path : Path.t) =
   let css_file_names = [ "simple.css"; "custom.css"; "highlight.css" ] in

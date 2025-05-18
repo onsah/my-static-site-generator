@@ -13,17 +13,10 @@ module Path : sig
   val base_name : t -> string
   val ext : t -> string
 end = struct
-<<<<<<< HEAD
-  type t =
-    { parts : string list
-    ; is_relative : bool
-    }
-=======
   type t = {
     parts : string list;
     is_relative : bool;
   }
->>>>>>> 302501b (chore: update .gitignore and format code for clarity)
 
   let separator = '/'
 
