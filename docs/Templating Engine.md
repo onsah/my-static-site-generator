@@ -35,10 +35,12 @@ Iterates over a `Collection` type of item.
 #### Example
 
 ```
-{foreach post in posts
+{{foreach post in posts
     {{post.title}}
-end}
+end}}
 ```
+
+The body is duplicated for each item in `posts`.
 
 ## Important Notes
 
