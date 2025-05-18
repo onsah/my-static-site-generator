@@ -11,9 +11,7 @@ type post_with_preview =
   ; post : Site.post
   }
 
-type current_section =
-  | Me
-  | Blog
+type current_section = Me
 
 let generate_html_from_markdown ~markdown_str =
   let doc = Cmarkit.Doc.of_string ~layout:true ~strict:false markdown_str in
@@ -25,7 +23,6 @@ let generate_header_component (content_path : Path.t) ~(current_section : curren
   let path = Path.join content_path (Path.from_parts [ "templates"; "header.html" ]) in
   let header_component = path |> DiskIO.read_all |> Soup.parse in
   (match current_section with
-   | Blog -> Soup.add_class "current" (header_component $ "#blog")
    | Me -> Soup.add_class "current" (header_component $ "#me"));
   header_component
 ;;
@@ -207,7 +204,7 @@ let _generate_blog_page ~(content_path : Path.t) ~(header_component : Site.page)
   blog_page
 ;;
 
-let generate_posts ~(content_path : Path.t) ~(header_component : Site.page) =
+let _generate_posts ~(content_path : Path.t) ~(header_component : Site.page) =
   let post_components_list =
     generate_post_components_list ~content_path ~header_component
   in
@@ -282,7 +279,6 @@ let generate_context ~content_path : TemplatingEngine.context =
 ;;
 
 let generate ~content_path =
-  let header_component = generate_header_component content_path ~current_section:Blog in
   let context = generate_context ~content_path in
   context |> TemplatingEngine.sexp_of_context |> Sexp.to_string |> print_endline;
   let context = generate_context ~content_path in
@@ -321,10 +317,40 @@ let generate ~content_path =
     }
   in
   let post_files =
+    let module Map = Core.Map.Poly in
+    let posts_path = Path.join content_path (Path.from_parts [ "pages"; "posts" ]) in
+    DiskIO.list posts_path
+    |> List.filter ~f:(fun path -> Path.ext path = "md")
+    |> List.map ~f:(fun path ->
+      let template =
+        Path.join content_path (Path.from_parts [ "templates"; "post.new.html" ])
+        |> DiskIO.read_all
+      in
+      let base_name = Path.base_name path in
+      let metadata_path = Path.join posts_path (Path.from (base_name ^ ".json")) in
+      let metadata = metadata_path |> DiskIO.read_all |> Yojson.Basic.from_string in
+      let { title; created_at; _ } = parse_post_metadata ~metadata in
+      let content = DiskIO.read_all (Path.join posts_path path) in
+      let context =
+        Map.of_alist_exn
+          TemplatingEngine.
+            [ "title", String title
+            ; "createdat", String (created_at |> Date.to_string)
+            ; "content", String content
+            ]
+      in
+      { content =
+          TemplatingEngine.run ~template ~context
+          |> Result.map_error ~f:TemplatingEngine.show_error
+          |> Result.ok_or_failwith
+      ; path = Path.from_parts [ "posts"; base_name ]
+      })
+  in
+  (* let post_files =
     List.map
       (generate_posts ~content_path ~header_component:(clone_page header_component))
       ~f:(fun post -> { content = post.page |> Soup.to_string; path = post.path2 })
-  in
+  in *)
   { output_files =
       [ index_file; blog_file; style_file; highlight_js_file ] @ font_files @ post_files
   }

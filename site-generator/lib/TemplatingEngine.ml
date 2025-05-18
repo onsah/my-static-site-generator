@@ -34,6 +34,9 @@ module Tokenizer = struct
     | Dot
     | Space
     | Newline
+    | LeftParen
+    | RightParen
+    | Semicolon
   [@@deriving sexp, compare]
 
   let show_kind : kind -> string = function
@@ -46,6 +49,9 @@ module Tokenizer = struct
     | Dot -> "."
     | Space -> " "
     | Newline -> "\n"
+    | LeftParen -> "("
+    | RightParen -> ")"
+    | Semicolon -> ";"
   ;;
 
   type token =
@@ -81,6 +87,9 @@ module Tokenizer = struct
       | Dot -> 1
       | Space -> 1
       | Newline -> 1
+      | LeftParen -> 1
+      | RightParen -> 1
+      | Semicolon -> 1
     in
     Location.add_col location ~amount
   ;;
@@ -114,6 +123,15 @@ module Tokenizer = struct
            default chars
          | '\n' ->
            yield { kind = Newline; location };
+           default chars
+         | '(' ->
+           yield { kind = LeftParen; location };
+           default chars
+         | ')' ->
+           yield { kind = RightParen; location };
+           default chars
+         | ';' ->
+           yield { kind = Semicolon; location };
            default chars
          | 'a' .. 'z' | 'A' .. 'Z' | '<' | '>' | '/' | '=' | '"' | '\'' | '-' | ',' | '.'
            -> text chars (String.of_char char) ~start_location:location
@@ -325,6 +343,15 @@ module Templating = struct
            exit_scope tokens context_stack ~prev_location:(Tokenizer.end_location token)
          | Space ->
            yield " ";
+           default tokens context_stack
+         | LeftParen ->
+           yield "(";
+           default tokens context_stack
+         | RightParen ->
+           yield ")";
+           default tokens context_stack
+         | Semicolon ->
+           yield ";";
            default tokens context_stack
          | Newline ->
            yield "\n";
