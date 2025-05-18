@@ -10,11 +10,7 @@ serve: generate
 	miniserve result/dist --index index.html --port 9090
 
 deploy:	generate
-<<<<<<< HEAD
 ifndef ip
 	$(error "required argument: 'ip'")
 endif
 	SERVER_IP="$(ip)" scripts/deploy.nu
-=======
-	scripts/deploy.nu
->>>>>>> main
