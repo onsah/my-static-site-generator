@@ -1,6 +1,6 @@
 #!/usr/bin/env nu
 
-rsync -av --ignore-times -e ssh ./result/dist/ $"root@($env.SERVER_IP):/etc/nix-config/devices/hetzner-nixos/blog/"
+rsync -av --ignore-times --delete -e ssh ./website-result/dist/ $"root@($env.SELF_HOSTED_SERVER_IP_V4):/etc/nix-config/devices/hetzner-nixos/blog/"
 
 ssh $env.SERVER_IP -l root ('
   pushd /etc/nix-config/devices/hetzner-nixos/

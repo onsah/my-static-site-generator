@@ -4,4 +4,8 @@ dist/
 website-generator-result
 website-result
 result
+<<<<<<< HEAD
 */**/odig
+=======
+site-generator/odig
+>>>>>>> main
