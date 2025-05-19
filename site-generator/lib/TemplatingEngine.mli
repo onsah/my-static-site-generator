@@ -15,20 +15,19 @@ type context_item =
 type context = (string, context_item) Map.t [@@deriving sexp]
 
 (** A position in the HTML document. *)
-type location =
-  { line : int
-  ; column : int
-  }
+type location = {
+  line : int;
+  column : int;
+}
 
 type error
 
 val show_error : error -> string
 val error_location : error -> location
 
-(**
-  returns either the new document after templating, or list of errors happened during templating.
-*)
-val run
-  :  template:string
-  -> context:context (* TODO: error list *)
-  -> (string, error) result
+(** returns either the new document after templating, or list of errors happened
+    during templating. *)
+val run :
+  template:string ->
+  context:context (* TODO: error list *) ->
+  (string, error) result
