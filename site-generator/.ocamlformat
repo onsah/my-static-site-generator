@@ -1,1 +1,5 @@
-profile = janestreet
+profile = default
+version = 0.27.0
+type-decl = sparse
+break-cases = fit-or-vertical
+doc-comments = before
