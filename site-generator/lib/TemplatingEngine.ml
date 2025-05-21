@@ -106,11 +106,10 @@ module Templating = struct
       ({ yield; abort } : (string, error) Sequence.fallible_iter_args) : unit =
     let rec default tokens context_stack =
       match Sequence.next tokens with
-      | Some ((Tokenizer.{ kind; location } as token), tokens) -> (
+      | Some ((Tokenizer.{ kind; start_location; _ } as token), tokens) -> (
           match kind with
           | LeftCurly ->
-              templating tokens context_stack
-                ~prev_location:(Tokenizer.end_location token)
+              templating tokens context_stack ~prev_location:token.end_location
           | Text s ->
               yield s;
               default tokens context_stack
@@ -118,8 +117,7 @@ module Templating = struct
               yield ".";
               default tokens context_stack
           | End ->
-              exit_scope tokens context_stack
-                ~prev_location:(Tokenizer.end_location token)
+              exit_scope tokens context_stack ~prev_location:token.end_location
           | Space ->
               yield " ";
               default tokens context_stack
@@ -135,7 +133,7 @@ module Templating = struct
           | Newline ->
               yield "\n";
               default tokens context_stack
-          | _ -> abort (`TemplatingUnexpected (kind, location)))
+          | _ -> abort (`TemplatingUnexpected (kind, start_location)))
       | None ->
           ();
           assert (context_stack |> NonEmptyStack.pop |> snd |> Option.is_none)
@@ -148,42 +146,43 @@ module Templating = struct
             | Some (({ kind = Text text; _ } as token), tokens) ->
                 path (List.append acc [ text ]) token tokens
             | Some (token, _) ->
-                abort (`TemplatingUnexpected (token.kind, token.location))
-            | None -> abort (`TemplatingFinishedUnexpectedly token.location))
+                abort (`TemplatingUnexpected (token.kind, token.start_location))
+            | None ->
+                abort (`TemplatingFinishedUnexpectedly token.start_location))
         | Some _ ->
-            (match substitute acc context_stack token.location with
+            (match substitute acc context_stack token.start_location with
             | Ok result -> yield result
             | Error error -> abort error);
-            right_curly tokens context_stack
-              ~prev_location:(Tokenizer.end_location token)
-        | None -> abort (`TemplatingFinishedUnexpectedly token.location)
+            right_curly tokens context_stack ~prev_location:token.end_location
+        | None -> abort (`TemplatingFinishedUnexpectedly token.start_location)
       in
       match Sequence.next tokens with
       | Some (token, tokens) -> (
           match token.kind with
           | Text text -> path [ text ] token tokens
           | Foreach ->
-              foreach_var tokens context_stack
-                ~prev_location:(Tokenizer.end_location token)
-          | _ -> abort (`TemplatingUnexpected (token.kind, token.location)))
+              foreach_var tokens context_stack ~prev_location:token.end_location
+          | _ ->
+              abort (`TemplatingUnexpected (token.kind, token.start_location)))
       | None -> abort (`TemplatingFinishedUnexpectedly prev_location)
     and right_curly tokens context_stack ~prev_location =
       match Sequence.next tokens with
       | Some (token, tokens) -> (
           match token.kind with
           | RightCurly -> default tokens context_stack
-          | _ -> abort (`TemplatingUnexpected (token.kind, token.location)))
+          | _ ->
+              abort (`TemplatingUnexpected (token.kind, token.start_location)))
       | None -> abort (`TemplatingFinishedUnexpectedly prev_location)
     and foreach_var tokens context_stack ~prev_location =
       match Sequence.next tokens with
       | Some (token, tokens) -> (
           match token.kind with
           | Text var_name ->
-              foreach_in tokens context_stack
-                ~prev_location:(Tokenizer.end_location token)
+              foreach_in tokens context_stack ~prev_location:token.end_location
                 ~var_name
           | Space -> foreach_var tokens context_stack ~prev_location
-          | _ -> abort (`TemplatingUnexpected (token.kind, token.location)))
+          | _ ->
+              abort (`TemplatingUnexpected (token.kind, token.start_location)))
       | None -> abort (`TemplatingFinishedUnexpectedly prev_location)
     and foreach_in tokens context_stack ~prev_location ~var_name =
       match Sequence.next tokens with
@@ -191,10 +190,10 @@ module Templating = struct
           match token.kind with
           | In ->
               foreach_collection tokens context_stack
-                ~prev_location:(Tokenizer.end_location token)
-                ~var_name
+                ~prev_location:token.end_location ~var_name
           | Space -> foreach_in tokens context_stack ~prev_location ~var_name
-          | _ -> abort (`TemplatingUnexpected (token.kind, token.location)))
+          | _ ->
+              abort (`TemplatingUnexpected (token.kind, token.start_location)))
       | None -> abort (`TemplatingFinishedUnexpectedly prev_location)
     and foreach_collection tokens context_stack ~prev_location ~var_name =
       match Sequence.next tokens with
@@ -202,10 +201,11 @@ module Templating = struct
           match token.kind with
           | Text collection_name ->
               foreach_enter tokens context_stack ~var_name ~collection_name
-                ~collection_location:token.location
+                ~collection_location:token.start_location
           | Space ->
               foreach_collection tokens context_stack ~prev_location ~var_name
-          | _ -> abort (`TemplatingUnexpected (token.kind, token.location)))
+          | _ ->
+              abort (`TemplatingUnexpected (token.kind, token.start_location)))
       | None -> abort (`TemplatingFinishedUnexpectedly prev_location)
     and foreach_enter tokens context_stack ~var_name ~collection_name
         ~collection_location =
@@ -284,10 +284,8 @@ module Templating = struct
       (Quickcheck.Generator.both str_generator str_generator)
       ~f:(fun (s1, s2) ->
         let tokens =
-          Tokenizer.(
-            Sequence.of_list [ LeftCurly; Text s1; RightCurly ]
-            |> Sequence.map ~f:(fun kind ->
-                   { kind; location = Location.make ~line:0 ~column:0 }))
+          sprintf "{{%s}}" s1 |> String.to_sequence |> Tokenizer.tokenize
+          |> Result.ok |> Option.value_exn
         in
         let context = Map.of_alist_exn [ (s1, String s2) ] in
         let result = perform ~tokens context in
@@ -299,11 +297,9 @@ module Templating = struct
     Quickcheck.test ~trials:50
       (Quickcheck.Generator.both str_generator str_generator)
       ~f:(fun (s1, s2) ->
-        let open Tokenizer in
         let tokens =
-          Sequence.of_list [ LeftCurly; Text s1; RightCurly ]
-          |> Sequence.map ~f:(fun kind ->
-                 { kind; location = Location.make ~line:0 ~column:0 })
+          sprintf "{{%s}}" s1 |> String.to_sequence |> Tokenizer.tokenize
+          |> Result.ok |> Option.value_exn
         in
         let context = Map.of_alist_exn [ (s1, String s2) ] in
         let result = perform ~tokens context in
@@ -319,22 +315,10 @@ module Templating = struct
          (floats_generator 10) ~f:(fun x y z -> (x, y, z)))
       ~f:(fun (collection_name, item_name, items) ->
         let tokens =
-          Sequence.of_list
-            Tokenizer.
-              [
-                LeftCurly;
-                Foreach;
-                Text item_name;
-                In;
-                Text collection_name;
-                LeftCurly;
-                Text item_name;
-                RightCurly;
-                End;
-                RightCurly;
-              ]
-          |> Sequence.map ~f:(fun kind ->
-                 Tokenizer.{ kind; location = Location.make ~line:0 ~column:0 })
+          sprintf "{{foreach %s in %s {{%s}} end}}" item_name collection_name
+            item_name
+          |> String.to_sequence |> Tokenizer.tokenize |> Result.ok
+          |> Option.value_exn
         in
         let context =
           Map.of_alist_exn
@@ -345,7 +329,12 @@ module Templating = struct
         in
         let result = perform ~tokens context in
         let actual =
-          result |> Result.ok |> Option.value_exn |> Sequence.to_list
+          result |> Result.ok |> Option.value_exn
+          |> Sequence.filter ~f:(fun s ->
+                 s
+                 |> String.substr_replace_all ~pattern:" " ~with_:""
+                 |> String.is_empty |> not)
+          |> Sequence.to_list
         in
         let expected = items |> List.map ~f:string_of_float in
         [%test_eq: string list] actual expected)
@@ -355,19 +344,9 @@ module Templating = struct
       (Quickcheck.Generator.both str_generator str_generator)
       ~f:(fun (var_name, collection_name) ->
         let tokens =
-          Sequence.of_list
-            Tokenizer.
-              [
-                LeftCurly;
-                Foreach;
-                Text var_name;
-                In;
-                Text collection_name;
-                End;
-                RightCurly;
-              ]
-          |> Sequence.map ~f:(fun kind ->
-                 Tokenizer.{ kind; location = Location.make ~line:0 ~column:0 })
+          sprintf "{{foreach %s in %s end}}" var_name collection_name
+          |> String.to_sequence |> Tokenizer.tokenize |> Result.ok
+          |> Option.value_exn
         in
         let context = Map.of_alist_exn [ (collection_name, Number 0.) ] in
         let result = perform ~tokens context in
@@ -377,7 +356,7 @@ module Templating = struct
             (`TemplatingExpectedType
                {
                  typ = Collection_t;
-                 location = Location.make ~line:0 ~column:0;
+                 location = Location.make ~line:0 ~column:19;
                })
         in
         [%test_eq: error option] actual expected)
@@ -388,11 +367,9 @@ module Templating = struct
          Float.quickcheck_generator ~f:(fun x y z -> (x, y, z)))
       ~f:(fun (obj_name, field_name, value) ->
         let tokens =
-          Sequence.of_list
-            Tokenizer.
-              [ LeftCurly; Text obj_name; Dot; Text field_name; RightCurly ]
-          |> Sequence.map ~f:(fun kind ->
-                 Tokenizer.{ kind; location = Location.make ~line:0 ~column:0 })
+          sprintf "{{%s.%s}}" obj_name field_name
+          |> String.to_sequence |> Tokenizer.tokenize |> Result.ok
+          |> Option.value_exn
         in
         let context =
           Map.of_alist_exn

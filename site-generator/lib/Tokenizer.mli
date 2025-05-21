@@ -19,7 +19,8 @@ val show_kind : kind -> string
 
 type token = {
   kind : kind;
-  location : Location.t;
+  start_location : Location.t;
+  end_location : Location.t;
 }
 [@@deriving sexp, compare]
 
@@ -37,5 +38,4 @@ val show_error :
   ] ->
   string
 
-val end_location : token -> Location.t
 val tokenize : char Sequence.t -> (token Sequence.t, [> error ]) result
