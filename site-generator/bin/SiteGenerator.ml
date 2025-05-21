@@ -1,5 +1,5 @@
 open Core
-open Templating_engine
+open Templating
 
 let ( = ) = Poly.( = )
 

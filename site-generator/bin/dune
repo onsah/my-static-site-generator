@@ -10,4 +10,4 @@
   lambdasoup
   str
   cmarkit
-  templating_engine))
+  templating))
