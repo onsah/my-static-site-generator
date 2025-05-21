@@ -11,18 +11,6 @@ type context_item =
 
 type context = (string, context_item) Map.t [@@deriving sexp]
 
-type location = {
-  line : int;
-  column : int;
-}
-[@@deriving sexp, compare]
-
-module Location = struct
-  let add_col loc ~amount = { loc with column = loc.column + amount }
-  let increment_col = add_col ~amount:1
-  let show { line; column } = sprintf "at line %i, column %i" line column
-end
-
 module Tokenizer = struct
   type kind =
     | Text of string
@@ -55,13 +43,13 @@ module Tokenizer = struct
 
   type token = {
     kind : kind;
-    location : location;
+    location : Location.t;
   }
   [@@deriving sexp, compare]
 
   type error =
-    [ `TokenizerExpectedOneOf of char list * location
-    | `TokenizerUnexpected of char * location
+    [ `TokenizerExpectedOneOf of char list * Location.t
+    | `TokenizerUnexpected of char * Location.t
     ]
   [@@deriving sexp, compare]
 
@@ -91,13 +79,14 @@ module Tokenizer = struct
     in
     Location.add_col location ~amount
 
-  let with_location chars : (char * location) Sequence.t =
-    Sequence.folding_map chars ~init:{ line = 0; column = 0 }
-      ~f:(fun ({ line; column } as loc) char ->
+  let with_location chars : (char * Location.t) Sequence.t =
+    Sequence.folding_map chars ~init:(Location.make ~line:0 ~column:0)
+      ~f:(fun loc char ->
         let next_loc =
-          match char with
+          failwith "TODO"
+          (* match char with
           | '\n' -> { line = line + 1; column = 0 }
-          | _ -> { line; column = column + 1 }
+          | _ -> { line; column = column + 1 } *)
         in
         (next_loc, (char, loc)))
 
@@ -196,9 +185,9 @@ module Tokenizer = struct
     [%test_eq: (token list, error) result] result
       (Ok
          [
-           { kind = LeftCurly; location = { line = 0; column = 0 } };
-           { kind = Text "foo"; location = { line = 0; column = 2 } };
-           { kind = RightCurly; location = { line = 0; column = 5 } };
+           { kind = LeftCurly; location = Location.make ~line:0 ~column:0 };
+           { kind = Text "foo"; location = Location.make ~line:0 ~column:2 };
+           { kind = RightCurly; location = Location.make ~line:0 ~column:5 };
          ])
 
   let%test_unit "tokenizer_left_angle" =
@@ -209,10 +198,10 @@ module Tokenizer = struct
     [%test_eq: (token list, error) result] result
       (Ok
          [
-           { kind = Text "<"; location = { line = 0; column = 0 } };
-           { kind = LeftCurly; location = { line = 0; column = 1 } };
-           { kind = Text "foo"; location = { line = 0; column = 3 } };
-           { kind = RightCurly; location = { line = 0; column = 6 } };
+           { kind = Text "<"; location = Location.make ~line:0 ~column:0 };
+           { kind = LeftCurly; location = Location.make ~line:0 ~column:1 };
+           { kind = Text "foo"; location = Location.make ~line:0 ~column:3 };
+           { kind = RightCurly; location = Location.make ~line:0 ~column:6 };
          ])
 
   let%test_unit "tokenizer_dot" =
@@ -222,9 +211,9 @@ module Tokenizer = struct
       |> Result.map ~f:Sequence.to_list)
       (Ok
          [
-           { kind = Text "foo"; location = { line = 0; column = 0 } };
-           { kind = Dot; location = { line = 0; column = 3 } };
-           { kind = Text "bar"; location = { line = 0; column = 4 } };
+           { kind = Text "foo"; location = Location.make ~line:0 ~column:0 };
+           { kind = Dot; location = Location.make ~line:0 ~column:3 };
+           { kind = Text "bar"; location = Location.make ~line:0 ~column:4 };
          ])
 end
 
@@ -240,14 +229,14 @@ module Templating = struct
 
   type type_error_info = {
     typ : templating_type;
-    location : location;
+    location : Location.t;
   }
   [@@deriving sexp, compare]
 
   type error =
-    [ `TemplatingUnexpected of Tokenizer.kind * location
-    | `TemplatingVariableNotFound of string * location
-    | `TemplatingFinishedUnexpectedly of location
+    [ `TemplatingUnexpected of Tokenizer.kind * Location.t
+    | `TemplatingVariableNotFound of string * Location.t
+    | `TemplatingFinishedUnexpectedly of Location.t
     | `TemplatingExpectedType of type_error_info
     | `TemplatingUnexpectedType of type_error_info
     ]
@@ -504,7 +493,7 @@ module Templating = struct
           Tokenizer.(
             Sequence.of_list [ LeftCurly; Text s1; RightCurly ]
             |> Sequence.map ~f:(fun kind ->
-                   { kind; location = { line = 0; column = 0 } }))
+                   { kind; location = Location.make ~line:0 ~column:0 }))
         in
         let context = Map.of_alist_exn [ (s1, String s2) ] in
         let result = perform ~tokens context in
@@ -520,7 +509,7 @@ module Templating = struct
         let tokens =
           Sequence.of_list [ LeftCurly; Text s1; RightCurly ]
           |> Sequence.map ~f:(fun kind ->
-                 { kind; location = { line = 0; column = 0 } })
+                 { kind; location = Location.make ~line:0 ~column:0 })
         in
         let context = Map.of_alist_exn [ (s1, String s2) ] in
         let result = perform ~tokens context in
@@ -551,7 +540,7 @@ module Templating = struct
                 RightCurly;
               ]
           |> Sequence.map ~f:(fun kind ->
-                 Tokenizer.{ kind; location = { line = 0; column = 0 } })
+                 Tokenizer.{ kind; location = Location.make ~line:0 ~column:0 })
         in
         let context =
           Map.of_alist_exn
@@ -584,7 +573,7 @@ module Templating = struct
                 RightCurly;
               ]
           |> Sequence.map ~f:(fun kind ->
-                 Tokenizer.{ kind; location = { line = 0; column = 0 } })
+                 Tokenizer.{ kind; location = Location.make ~line:0 ~column:0 })
         in
         let context = Map.of_alist_exn [ (collection_name, Number 0.) ] in
         let result = perform ~tokens context in
@@ -592,7 +581,10 @@ module Templating = struct
         let expected =
           Some
             (`TemplatingExpectedType
-               { typ = Collection_t; location = { line = 0; column = 0 } })
+               {
+                 typ = Collection_t;
+                 location = Location.make ~line:0 ~column:0;
+               })
         in
         [%test_eq: error option] actual expected)
 
@@ -606,7 +598,7 @@ module Templating = struct
             Tokenizer.
               [ LeftCurly; Text obj_name; Dot; Text field_name; RightCurly ]
           |> Sequence.map ~f:(fun kind ->
-                 Tokenizer.{ kind; location = { line = 0; column = 0 } })
+                 Tokenizer.{ kind; location = Location.make ~line:0 ~column:0 })
         in
         let context =
           Map.of_alist_exn
@@ -641,7 +633,7 @@ let show_error (error : error) =
     | `TemplatingUnexpectedType _
     | `TemplatingVariableNotFound _ ) as error -> Templating.show_error error
 
-let error_location : error -> location = function
+let error_location : error -> Location.t = function
   | `TemplatingFinishedUnexpectedly loc
   | `TemplatingUnexpected (_, loc)
   | `TemplatingExpectedType { location = loc; _ }
@@ -662,6 +654,7 @@ let%test_unit "perform_templating_error_location" =
   let actual = run ~template ~context in
   let expected =
     Error
-      (`TemplatingUnexpected (Tokenizer.Text "/", { line = 0; column = 27 }))
+      (`TemplatingUnexpected
+         (Tokenizer.Text "/", Location.make ~line:0 ~column:27))
   in
   [%test_eq: (string, error) result] actual expected
