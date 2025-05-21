@@ -463,9 +463,6 @@ module Templating = struct
       let foreach_tokens =
         Sequence.append foreach_tokens (Sequence.take tokens_after 2)
       in
-      foreach_tokens
-      |> Sequence.iter ~f:(fun token ->
-             Tokenizer.(token.kind |> show_kind |> print_endline));
       (* For each item in the collection repeat *)
       items
       |> List.iter ~f:(fun item ->
@@ -656,12 +653,6 @@ let error_location : error -> location = function
 let run ~(template : string) ~(context : context) =
   let open Result.Let_syntax in
   let%bind tokens = Tokenizer.tokenize (template |> String.to_sequence) in
-  let tokens =
-    tokens
-    |> Sequence.map ~f:(fun token ->
-           print_endline Tokenizer.(show_kind token.kind);
-           token)
-  in
   let%map strings = Templating.perform ~tokens context in
   strings |> Sequence.to_list |> String.concat
 
