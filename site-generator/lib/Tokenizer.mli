@@ -1,0 +1,41 @@
+module Sequence = MySequence
+
+type kind =
+  | Text of string
+  | LeftCurly
+  | RightCurly
+  | Foreach
+  | In
+  | End
+  | Dot
+  | Space
+  | Newline
+  | LeftParen
+  | RightParen
+  | Semicolon
+[@@deriving sexp, compare]
+
+val show_kind : kind -> string
+
+type token = {
+  kind : kind;
+  location : Location.t;
+}
+[@@deriving sexp, compare]
+
+val compare_token : token -> token -> int
+
+type error =
+  [ `TokenizerExpectedOneOf of char list * Location.t
+  | `TokenizerUnexpected of char * Location.t
+  ]
+[@@deriving sexp, compare]
+
+val show_error :
+  [< `TokenizerExpectedOneOf of char list * Location.t
+  | `TokenizerUnexpected of char * Location.t
+  ] ->
+  string
+
+val end_location : token -> Location.t
+val tokenize : char Sequence.t -> (token Sequence.t, [> error ]) result
