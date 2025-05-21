@@ -14,16 +14,10 @@ type context_item =
 (** Mapping from template variables to their values. *)
 type context = (string, context_item) Map.t [@@deriving sexp]
 
-(** A position in the HTML document. *)
-type location = {
-  line : int;
-  column : int;
-}
-
 type error
 
 val show_error : error -> string
-val error_location : error -> location
+val error_location : error -> Location.t
 
 (** returns either the new document after templating, or list of errors happened
     during templating. *)
