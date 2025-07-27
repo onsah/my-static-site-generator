@@ -278,4 +278,67 @@ Server is listening at '/127.0.0.1:4041'
 
 Great! We have come a long way from 722 MB to 239 MB.
 
-## TODO: dockerTools.copyToRoot gotchas
+## `dockerTools.copyToRoot` Gotchas
+
+I wrote before that there the application Jar is duplicated. It appears both under `/share` and `/nix/store` paths in the file system of the container. Let's look into how we defined our container image:
+
+```nix
+let
+    # ...
+    app-container = pkgs.dockerTools.buildImage {
+        name = "app-container";
+        tag = "latest";
+
+        # What does it do 🤔
+        copyToRoot = [ packages.default pkgs.busybox ];
+
+        config = { Cmd = [ "/bin/${packages.default.pname}" ]; };
+    };
+in
+    # ...
+```
+
+We duplicate the Jar because we tell Nix to copy the contents of the packages given in `copyToRoot` to the root of the container image. What we actually want to do is to put _symlinks_ to the root that points to `/nix/store` because everything we need is already there.
+
+The following change fixes the problem:
+
+```nix
+let
+    # ...
+    app-container = pkgs.dockerTools.buildImage {
+        name = "app-container";
+        tag = "latest";
+
+        # Use buildEnv 👇
+        copyToRoot = pkgs.buildEnv {
+            name = "image-root";
+            paths = [ packages.default pkgs.busybox ];
+            pathsToLink = [ "/bin" ];
+        };
+
+        config = { Cmd = [ "/bin/${packages.default.pname}" ]; };
+    };
+in
+    # ...
+```
+
+There are two changes we did here:
+
+1. We wrapped the packages with `pkgs.buildEnv` which allows us to generate symlinks to `/nix/store` via `pathsToLink` attribute.
+2. We only included `/bin` in `pathsToLink` so everything else (such as `/share`) won't be put to the root of the image from the packages.
+
+For some reason `pkgs.buildEnv` is heavily underdocumented. Best documentation I could find was [here](https://nixos.org/manual/nixpkgs/stable/#sec-building-environment) which doesn't even exclusively talk about `buildEnv`. But essentially it's a simpler version of `mkShell`. Using it we can create an environment with the packages we want. In our case the important part is that it allows us to generate symlinks to the actual content in the `/nix/store`.
+
+Again, let's build the image to see it's size:
+
+```sh
+aiono ❯ nix-build
+aiono ❯ cat result | docker load
+aiono ❯ docker images
+REPOSITORY                        TAG                               IMAGE ID      CREATED        SIZE
+localhost/app-container           latest                            5cfef9f22c2a  55 years ago   198 MB
+```
+
+We got down to 198 MB from 239 MB.
+
+# TODO: Further improvements
