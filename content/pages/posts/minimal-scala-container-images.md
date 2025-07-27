@@ -1,6 +1,6 @@
 Recently I've been working on a Scala backend as a side project. I decided to deploy it as a Docker image for portability reasons. My hosting provider supports running JARs, but I wanted something that I could host anywhere if I decided to move away. 
 
-There are already articles about [generating Docker images for a Scala project](https://medium.com/@ievstrygul/dockerizing-scala-app-3fdf08cffda4) [even with Nix](https://zendesk.engineering/using-nix-to-develop-and-package-a-scala-project-cadccd56ad06), so why am I writing another one? The reason is that when I followed them, I ended up with a 722MB Docker image! I found this to be unnecessarily big which motivated me to look for ways to reduce it. So this article is about building a **minimal** Docker image for Scala project using Nix. Most of it can be applied to any program that runs on JVM (Java, Kotlin etc.) as well.
+There are already articles about [generating Docker images for a Scala project](https://medium.com/@ievstrygul/dockerizing-scala-app-3fdf08cffda4) [even with Nix](https://zendesk.engineering/using-nix-to-develop-and-package-a-scala-project-cadccd56ad06), so why am I writing another one? The reason is that when I followed them, I ended up with a 722 MB Docker image! I found this to be unnecessarily big which motivated me to look for ways to reduce it. So this article is about building a **minimal** Docker image for a Scala project using Nix. Most of it can be applied to any program that runs on JVM (Java, Kotlin, etc.) as well.
 
 Containerization of a JVM application feels a bit strange because one has to also bundle the JVM to execute the JAR, so it's essentially virtualization over virtualization, which also most probably runs on a virtual machine.
 
@@ -12,7 +12,7 @@ Anyway... let's start.
 
 In order to containerize an `sbt` project one has to:
 
-1. Build a JAR with all the dependencies included. This is called "über JAR". Normally JARs doesn't include their dependencies and load them in runtime similar to how shared libraries work.
+1. Build a JAR with all the dependencies included. This is called "über JAR". Normally JARs don't include their dependencies and load them at runtime, similar to how shared libraries work.
 2. Bundle it with a JVM (Java Virtual Machine). JVM applications need a virtual machine to be executed.
 3. Package the whole thing into a Docker-compatible container image.
 
@@ -52,9 +52,9 @@ let
         name = "app-container";
         tag = "latest";
 
-        copyToRoot = [ packages.default pkgs.busybox ];
+        copyToRoot = [ app pkgs.busybox ];
 
-        config = { Cmd = [ "/bin/${packages.default.pname}" ]; };
+        config = { Cmd = [ "/bin/${app.pname}" ]; };
     };
 in 
     app-container
@@ -64,16 +64,16 @@ Explanation:
 
 1. [sbt-derivation](https://github.com/zaninime/sbt-derivation) is a convenience utility to generate Nix derivations for `sbt` projects.
 2. [sbt-assembly](https://github.com/sbt/sbt-assembly) lets us generate "über JAR" with all the necessary dependencies.
-3. `makeWrapper` creates a binary that wraps the JAR with a `java` binary so it looks like a regular binary from outside. The binary comes from [jdk23_headless](https://search.nixos.org/packages?channel=unstable&show=jdk23_headless&from=0&size=50&sort=relevance&type=packages&query=jdk23_headless) package.
+3. `makeWrapper` creates a binary that wraps the JAR with a `java` binary so it looks like a regular binary from the outside. The binary comes from [jdk23_headless](https://search.nixos.org/packages?channel=unstable&show=jdk23_headless&from=0&size=50&sort=relevance&type=packages&query=jdk23_headless) package.
 
-After I built the container, I was pushing it into the hosting provider's registry but I noticed it took a lot of time to upload it. My home connection is not really fast (I would expect better from Germany) so having to wait 15 minutes to deploy a new version of the application was very annoying. I checked the image size locally, and I saw:
+After I built the container, I was pushing it into the hosting provider's registry, but I noticed it took a lot of time to upload it. My home connection is not really fast (I would expect better from Germany), so having to wait 15 minutes to deploy a new version of the application was very annoying. I checked the image size locally, and I saw:
 
 ```
 REPOSITORY                                   TAG                               IMAGE ID      CREATED        SIZE
 localhost/app-container                      latest                            f0e2ad8f1167  55 years ago   722 MB
 ```
 
-Ignore the obviously incorrect `CREATED 55 years ago`, the image was 722 MB! This is huge for a project like this. Annoyed by it, I went to checkout the contents of the image. Using `docker`/`podman` one can export the image filesystem into a `.tar` archive:
+Ignore the obviously incorrect `CREATED 55 years ago`, the image was 722 MB! This is huge for a project like this. Annoyed by it, I went to check out the contents of the image. Using `docker`/`podman` one can export the image filesystem into a `.tar` archive:
 
 ```sh
 aiono ❯ docker create localhost/app-container:latest
@@ -95,7 +95,7 @@ aiono ❯ du -sh $TMP_DIR/image/*
 37M     /tmp/tmp.3xnIHXwY1l/image/share
 ```
 
-Seems like most of the size comes from `/nix/store` which is not surprising. What's under `/share` should be the JVM. So it seems like the problem is not in the JAR since it's just 37 MB. Let's verify:
+It seems like most of the size comes from `/nix/store` which is not surprising. What's under `/share` should be the JVM. So it seems like the problem is not in the JAR since it's just 37 MB. Let's verify:
 
 ```sh
 aiono ❯ du -sh /tmp/tmp.3xnIHXwY1l/image/share/java/*
@@ -120,11 +120,11 @@ aiono ❯ du -sh $TMP_DIR/image/nix/store/* | sort -h | tail -n 10
 566M    /tmp/tmp.3xnIHXwY1l/image/nix/store/w7rphym6zk35wsx3aknbn3y7srj3x5qa-openjdk-headless-23.0.2+7
 ```
 
-The winner is definitely `openjdk-headless`. Almost all of the 722 MB comes from it. So that will be the first thing we will try to reduce. Second is odd, `scala-app` is the package for our app but we already have a copy of our app in `/share`! So it looks like a duplication but first focus on our JDK package.
+The winner is definitely `openjdk-headless`. Almost all of the 722 MB comes from it. So that will be the first thing we will try to reduce. Second is odd; `scala-app` is the package for our app, but we already have a copy of our app in `/share`! So it looks like a duplication, but first focus on our JDK package.
 
 ## Minimal Java Runtime Environments
 
-My first mistake was to bundle a full **Java Development Kit (JDK)** with the application. JDKs are used to _build_ a JVM app but to run it you only need **Java Runtime Environment (JRE)**. I searched for `jre` in [Nix Search](https://search.nixos.org/packages?channel=25.05&type=packages&query=jre). Second option was `jre_minimal`, which sounded very promising. So I made the following change:
+My first mistake was to bundle a full **Java Development Kit (JDK)** with the application. JDKs are used to _build_ a JVM app but to run it, you only need **Java Runtime Environment (JRE)**. I searched for `jre` in [Nix Search](https://search.nixos.org/packages?channel=25.05&type=packages&query=jre). The second option was `jre_minimal`, which sounded very promising. So I made the following change:
 
 ```nix
 - makeWrapper ${pkgs.jdk23_headless}/bin/java $out/bin/scala-app \
@@ -150,9 +150,9 @@ Exception in thread "main" java.lang.NoClassDefFoundError: sun/misc/Unsafe
         at ...
 ```
 
-Not good. Seems like we nedd `sun.misc.Unsafe` but `jre_minimal` doesn't come with it. We need to fix this.
+Not good. It seems like we need `sun.misc.Unsafe` but `jre_minimal` doesn't come with it. We need to fix this.
 
-I don't remember how I found, but [this section in nixpkgs reference](https://nixos.org/manual/nixpkgs/stable/#sec-language-java) shows how to use `jre_minimal`. Turns out, `jre_minimal` strips of _all_ the standard modules to provide a minimal JRE, so you need to provide which libraries you want. Under the hood, it [uses jlink to generate a minimal JRE](https://github.com/NixOS/nixpkgs/blob/3ff0e34b1383648053bba8ed03f201d3466f90c9/pkgs/development/compilers/openjdk/jre.nix#L28).
+I don't remember how I found it, but [this section in the nixpkgs reference](https://nixos.org/manual/nixpkgs/stable/#sec-language-java) shows how to use `jre_minimal`. Turns out, `jre_minimal` strips out _all_ the standard modules to provide a minimal JRE, so you need to provide which libraries you want. Under the hood, it [uses jlink to generate a minimal JRE](https://github.com/NixOS/nixpkgs/blob/3ff0e34b1383648053bba8ed03f201d3466f90c9/pkgs/development/compilers/openjdk/jre.nix#L28).
 
 How do we know which modules we need? Thankfully, there is a tool for that called [jdeps](https://dev.java/learn/jvm/tools/core/jdeps/). We can run it in our assembled jar to see which dependencies we need.
 
@@ -168,7 +168,7 @@ aiono ❯ jdeps --ignore-missing-deps --list-reduced-deps result/share/java/serv
    jdk.unsupported
 ```
 
-Side note: In my case, I later realized that I needed some more modules for my application to actually work. These were `jdk.crypto.ec` and `jdk.crypto.cryptoki`. Without these I couldn't make requests to some websites which requires encryption algorithms provided from these modules. In case you see `javax.net.ssl.SSLHandshakeException: Received fatal alert: insufficient_security` adding these may solve your issues.
+Side note: In my case, I later realized that I needed some more modules for my application to actually work. These were `jdk.crypto.ec` and `jdk.crypto.cryptoki`. Without these, I couldn't make requests to some websites which requires encryption algorithms provided from these modules. In case you see `javax.net.ssl.SSLHandshakeException: Received fatal alert: insufficient_security` adding these may solve your issues.
 
 Let's add those:
 
@@ -286,7 +286,7 @@ Great! We have come a long way from 722 MB to 239 MB.
 
 ## `dockerTools.copyToRoot` Gotchas
 
-I wrote before that there the application Jar is duplicated. It appears both under `/share` and `/nix/store` paths in the file system of the container. Let's look into how we defined our container image:
+I wrote before that the application JAR is duplicated. It appears both under `/share` and `/nix/store` paths in the file system of the container. Let's look into how we defined our container image:
 
 ```nix
 let
@@ -296,15 +296,15 @@ let
         tag = "latest";
 
         # What does it do 🤔
-        copyToRoot = [ packages.default pkgs.busybox ];
+        copyToRoot = [ app pkgs.busybox ];
 
-        config = { Cmd = [ "/bin/${packages.default.pname}" ]; };
+        config = { Cmd = [ "/bin/${app.pname}" ]; };
     };
 in
     # ...
 ```
 
-We duplicate the Jar because we tell Nix to copy the contents of the packages given in `copyToRoot` to the root of the container image. What we actually want to do is to put _symlinks_ to the root that points to `/nix/store` because everything we need is already there.
+We duplicated the JAR because we tell Nix to copy the contents of the packages given in `copyToRoot` to the root of the container image. What we actually want to do is to put _symlinks_ to the root that point to `/nix/store` because everything we need is already there.
 
 The following change fixes the problem:
 
@@ -318,24 +318,24 @@ let
         # Use buildEnv 👇
         copyToRoot = pkgs.buildEnv {
             name = "image-root";
-            paths = [ packages.default pkgs.busybox ];
+            paths = [ app pkgs.busybox ];
             pathsToLink = [ "/bin" ];
         };
 
-        config = { Cmd = [ "/bin/${packages.default.pname}" ]; };
+        config = { Cmd = [ "/bin/${app.pname}" ]; };
     };
 in
     # ...
 ```
 
-There are two changes we did here:
+There are two changes we made here:
 
-1. We wrapped the packages with `pkgs.buildEnv` which allows us to generate symlinks to `/nix/store` via `pathsToLink` attribute.
+1. We wrapped the packages with `pkgs.buildEnv` which allows us to generate symlinks to `/nix/store` via the `pathsToLink` attribute.
 2. We only included `/bin` in `pathsToLink` so everything else (such as `/share`) won't be put to the root of the image from the packages.
 
-For some reason `pkgs.buildEnv` is heavily underdocumented. Best documentation I could find was [here](https://nixos.org/manual/nixpkgs/stable/#sec-building-environment) which doesn't even exclusively talk about `buildEnv`. But essentially it's a simpler version of `mkShell`. Using it we can create an environment with the packages we want. In our case the important part is that it allows us to generate symlinks to the actual content in the `/nix/store`.
+For some reason, `pkgs.buildEnv` is heavily underdocumented. The best documentation I could find was [here](https://nixos.org/manual/nixpkgs/stable/#sec-building-environment) which doesn't even exclusively talk about `buildEnv`. But essentially it's a simpler version of `mkShell`. Using it we can create an environment with the packages we want. In our case the important part is that it allows us to generate symlinks to the actual content in the `/nix/store`.
 
-Again, let's build the image to see it's size:
+Again, let's build the image to see its size:
 
 ```sh
 aiono ❯ nix-build
@@ -380,7 +380,7 @@ In the end, we have the following derivation:
             jdk = pkgs.jdk21_headless;
         }; in 
         sbt-derivation.mkSbtDerivation.${system} {
-            pname = "app-backend";
+            pname = "app";
             version = "0.0.1";
             src = ./.;
             depsSha256 = "sha256-06Qog8DyDgisnBhUQ9wW46WqqnhGXlakI1DSuFHkriQ=";
@@ -406,17 +406,17 @@ In the end, we have the following derivation:
 
         copyToRoot = pkgs.buildEnv {
             name = "image-root";
-            paths = [ packages.default pkgs.busybox ];
+            paths = [ app pkgs.busybox ];
             pathsToLink = [ "/bin" ];
         };
 
-        config = { Cmd = [ "/bin/${packages.default.pname}" ]; };
+        config = { Cmd = [ "/bin/${app.pname}" ]; };
     }; in
     app-container
 ```
 
 ## Conclusion
 
-In conclusion, I was able to reduce the container size from 722 MB to 198 MB with the changes I mentioned. Thanks to Nix, creating a minimal image is really convenient because the build system does the most of the heavy lifting to figure out the necessary packages. Java has also very good tooling to create a minimal JRE just enough for the application to run. I believe there is still room for improvement to reduce the size but this is small enough for my use case. 
+In conclusion, I was able to reduce the container size from 722 MB to 198 MB with the changes I mentioned. Thanks to Nix, creating a minimal image is really convenient because the build system does the most of the heavy lifting to figure out the necessary packages. Java also has very good tooling to create a minimal JRE, just enough for the application to run. I believe there is still room for improvement to reduce the size, but it is already good enough for my use case. 
 
-With modern tools and workflows we easily forget how much waste we produce because most of the time it's not noticeable unless you are looking for it. Some of the waste makes sense, memory and CPU are not the only resources we have, developer time and time to implement new changes are also very valuable resources which a lot of the times more important than hardware resources. But still I think it's worthwhile to spend some time for reducing the waste and inefficiency in our software. These times are opportunities to learn new things and also it can be helpful for other resources along with hardware efficiency.
+With modern tools and workflows we easily forget how much waste we produce because most of the time it's not noticeable unless you are looking for it. Some of the waste makes sense, memory and CPU are not the only resources we have, developer time and time to implement new changes are also very valuable resources which a lot of the times more important than hardware resources. But still I think it's worthwhile to spend some time for reducing the waste and inefficiency in our software. These times are opportunities to learn new things, and also it can be helpful for other resources along with hardware efficiency.
