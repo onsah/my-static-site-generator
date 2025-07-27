@@ -2,7 +2,9 @@ Recently I am working on a Scala backend as a side project. I decided to deploy 
 
 There are already articles about [generating Docker images for a Scala project](https://medium.com/@ievstrygul/dockerizing-scala-app-3fdf08cffda4) [even with Nix](https://zendesk.engineering/using-nix-to-develop-and-package-a-scala-project-cadccd56ad06), so why am I writing another one? The reason is that when I followed them, I ended up with a 722MB Docker image! I found this to be unnecessarily big which motivated me to look for ways to reduce it. So this article is about building a **minimal** Docker image for Scala project using Nix. Most of it can be applied to any program that runs on JVM (Java, Kotlin etc.) as well.
 
-Containerization of a JVM application feels a bit strange because one has to also bundle the JVM to execute the JAR, so it's essentially virtualization over virtualization, which also most probably runs on a virtual machine. 
+Containerization of a JVM application feels a bit strange because one has to also bundle the JVM to execute the JAR, so it's essentially virtualization over virtualization, which also most probably runs on a virtual machine.
+
+Side note: If you just want to the see the end result, you can jump directly to the [last section](#final-derivation).
 
 Anyway... let's start.
 
@@ -156,13 +158,15 @@ How do we know which modules we need? Thankfully, there is a tool for that calle
 aiono ❯ jdeps --ignore-missing-deps --list-reduced-deps result/share/java/server-assembly-0.1.0.jar
    java.base
    java.desktop
-   java.management
+   java.managementcipher suites 
    java.naming
    java.security.jgss
    java.security.sasl
    java.sql
    jdk.unsupported
 ```
+
+Side note: In my case, I later realized that I needed some more modules for my application to actually work. These were `jdk.crypto.ec` and `jdk.crypto.cryptoki`. Without these I couldn't make requests to some websites which requires encryption algorithms provided from these modules. In case you see `javax.net.ssl.SSLHandshakeException: Received fatal alert: insufficient_security` adding these may solve your issues.
 
 Let's add those:
 
@@ -341,4 +345,76 @@ localhost/app-container           latest                            5cfef9f22c2a
 
 We got down to 198 MB from 239 MB.
 
-# TODO: Further improvements
+## Final derivation
+
+In the end, we have the following derivation:
+
+```nix
+    let 
+    repository = builtins.fetchTarball {
+        url = "https://github.com/zaninime/sbt-derivation/archive/master.tar.gz";
+    };
+    sbt-derivation = import "${repository}/overlay.nix";
+    app = let
+        jre = pkgs.jre_minimal.override {
+            # NOTE: What you need to put here depends on your application dependencies
+            modules = [
+                "java.base"
+                "java.desktop"
+                "java.logging"
+                "java.management"
+                "java.naming"
+                "java.security.jgss"
+                "java.security.sasl"
+                "java.sql"
+                "java.transaction.xa"
+                "java.xml"
+                "jdk.unsupported"
+                # These modules are necessary for establishing SSL connections.
+                # Otherwise I get "javax.net.ssl.SSLHandshakeException: Received fatal alert: insufficient_security"
+                "jdk.crypto.ec"
+                "jdk.crypto.cryptoki"
+            ];
+            jdk = pkgs.jdk21_headless;
+        }; in 
+        sbt-derivation.mkSbtDerivation.${system} {
+            pname = "app-backend";
+            version = "0.0.1";
+            src = ./.;
+            depsSha256 = "sha256-06Qog8DyDgisnBhUQ9wW46WqqnhGXlakI1DSuFHkriQ=";
+
+            buildInputs = with pkgs; [ makeWrapper ];
+
+            buildPhase = "sbt assembly";
+
+            installPhase = ''
+            mkdir -p $out/bin
+            mkdir -p $out/share/java
+
+            cp src/app/target/scala-3.*/*.jar $out/share/java
+
+            makeWrapper ${jre}/bin/java $out/bin/scala-app \
+                --set JAVA_HOME ${jre} \
+                --add-flags "-cp \"$out/share/java/*\" org.app.Application"
+            '';
+        };
+    app-container = pkgs.dockerTools.buildImage {
+        name = "app-container";
+        tag = "latest";
+
+        copyToRoot = pkgs.buildEnv {
+            name = "image-root";
+            paths = [ packages.default pkgs.busybox ];
+            pathsToLink = [ "/bin" ];
+        };
+
+        config = { Cmd = [ "/bin/${packages.default.pname}" ]; };
+    }; in
+    app-container
+```
+
+## Conclusion
+
+In conclusion, I was able to reduce the container size from 722 MB to 198 MB with the changes I mentioned. Thanks to Nix, creating a minimal image is really convenient because the build system does the most of the heavy lifting to figure out the necessary packages. Java has also very good tooling to create a minimal JRE just enough for the application to run. I believe there is still room for improvement to reduce the size but this is small enough for my usecase. 
+
+With modern tools and workflows we easily forget how much waste we produce because most of the time it's not noticable unless you are looking for it. Some of the waste makes sense, memory and CPU are not the only resources we have, developer time and time to implement new changes are also very valuable resources which a lot of the times more important than hardware resources. But still I think it's worthwhile to spend some time for reducing the waste and inefficiency in our software. These times are opportunities to learn new things and also it can be helpful for other resources along with hardware efficiency.
