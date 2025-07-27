@@ -1,4 +1,4 @@
-Recently I am working on a Scala backend as a side project. I decided to deploy it as a Docker image for portability reasons. My hosting provider supports running JARs, but I wanted something that I could host anywhere if I decided to move away. 
+Recently I've been working on a Scala backend as a side project. I decided to deploy it as a Docker image for portability reasons. My hosting provider supports running JARs, but I wanted something that I could host anywhere if I decided to move away. 
 
 There are already articles about [generating Docker images for a Scala project](https://medium.com/@ievstrygul/dockerizing-scala-app-3fdf08cffda4) [even with Nix](https://zendesk.engineering/using-nix-to-develop-and-package-a-scala-project-cadccd56ad06), so why am I writing another one? The reason is that when I followed them, I ended up with a 722MB Docker image! I found this to be unnecessarily big which motivated me to look for ways to reduce it. So this article is about building a **minimal** Docker image for Scala project using Nix. Most of it can be applied to any program that runs on JVM (Java, Kotlin etc.) as well.
 
@@ -10,11 +10,13 @@ Anyway... let's start.
 
 ## First attempt
 
-In order to containerize a Scala application one has to:
+In order to containerize an `sbt` project one has to:
 
-1. Build a JAR with all the dependencies included. This is called "über JAR".
-2. Bundle it with a JVM.
-3. Package the whole thing into a Docker-compatible container.
+1. Build a JAR with all the dependencies included. This is called "über JAR". Normally JARs doesn't include their dependencies and load them in runtime similar to how shared libraries work.
+2. Bundle it with a JVM (Java Virtual Machine). JVM applications need a virtual machine to be executed.
+3. Package the whole thing into a Docker-compatible container image.
+
+Side note: If you are not familiar with [sbt](https://www.scala-sbt.org/) (Scala Build Tool), it's the de-facto build tool for Scala projects.
 
 I am going to do all steps with Nix, since that gives me reproducible builds and I already use it for development.
 
@@ -415,6 +417,6 @@ In the end, we have the following derivation:
 
 ## Conclusion
 
-In conclusion, I was able to reduce the container size from 722 MB to 198 MB with the changes I mentioned. Thanks to Nix, creating a minimal image is really convenient because the build system does the most of the heavy lifting to figure out the necessary packages. Java has also very good tooling to create a minimal JRE just enough for the application to run. I believe there is still room for improvement to reduce the size but this is small enough for my usecase. 
+In conclusion, I was able to reduce the container size from 722 MB to 198 MB with the changes I mentioned. Thanks to Nix, creating a minimal image is really convenient because the build system does the most of the heavy lifting to figure out the necessary packages. Java has also very good tooling to create a minimal JRE just enough for the application to run. I believe there is still room for improvement to reduce the size but this is small enough for my use case. 
 
-With modern tools and workflows we easily forget how much waste we produce because most of the time it's not noticable unless you are looking for it. Some of the waste makes sense, memory and CPU are not the only resources we have, developer time and time to implement new changes are also very valuable resources which a lot of the times more important than hardware resources. But still I think it's worthwhile to spend some time for reducing the waste and inefficiency in our software. These times are opportunities to learn new things and also it can be helpful for other resources along with hardware efficiency.
+With modern tools and workflows we easily forget how much waste we produce because most of the time it's not noticeable unless you are looking for it. Some of the waste makes sense, memory and CPU are not the only resources we have, developer time and time to implement new changes are also very valuable resources which a lot of the times more important than hardware resources. But still I think it's worthwhile to spend some time for reducing the waste and inefficiency in our software. These times are opportunities to learn new things and also it can be helpful for other resources along with hardware efficiency.
