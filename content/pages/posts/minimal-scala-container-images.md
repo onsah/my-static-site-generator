@@ -347,6 +347,12 @@ localhost/app-container           latest                            5cfef9f22c2a
 
 We got down to 198 MB from 239 MB.
 
+## Comparison with other approaches
+
+After I had something I considered acceptable, I wanted to compare it with other approaches. By following [this article](https://medium.com/jeroen-rosenberg/lightweight-docker-containers-for-scala-apps-11b99cf1a666) I was able to build an image with size of 123 MB, which is better than 198 MB but I think it's not that bad. Also, with this approach the filesystem is a lot more cluttered and there are many unwanted binaries lying in `/bin`. Apart from the size these can cause complications. But this approach shows that there are still things I could possibly improve.
+
+Compared to other articles like https://zendesk.engineering/using-nix-to-develop-and-package-a-scala-project-cadccd56ad06 (568 MB) and https://dev.to/fialhorenato/how-to-create-slim-docker-java-images-using-a-minimal-jre-3a20 (349 MB) this approach leads to much smaller images.
+
 ## Final derivation
 
 In the end, we have the following derivation:
