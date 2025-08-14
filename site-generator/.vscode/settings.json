@@ -1,0 +1,12 @@
+{
+    "[ocaml]": {
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true,
+        "editor.formatOnSave": true
+    },
+    "[ocaml.interface]": {
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true,
+        "editor.formatOnSave": true
+    }
+}
