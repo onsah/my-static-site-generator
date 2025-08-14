@@ -1,0 +1,13 @@
+{
+    "languageTool.enabled": true,
+    "languageTool.language": "en",
+    "cSpell.words": [
+        "aiono",
+        "linuxrc",
+        "mktemp",
+        "nixpkgs",
+        "pkgs",
+        "pname",
+        "über"
+    ]
+}
