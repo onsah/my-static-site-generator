@@ -11,12 +11,12 @@
 }
 
 @font-face {
-    font-family: "AtkinsonHyperlegible";
-    src: url("fonts/AtkinsonHyperlegible-Regular.ttf");
+    font-family: "Source Serif 4";
+    src: url("fonts/SourceSerif4-Regular.ttf");
 }  
 
 :root {
-    --sans-font: "AtkinsonHyperlegible", "sans-serif";
+    --sans-font: "Source Serif 4", "sans-serif";
 }
 
 html,
