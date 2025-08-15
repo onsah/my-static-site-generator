@@ -1,22 +1,22 @@
 <html>
     <head>
         <link rel="stylesheet" href="/style.css">
-        <title id="post-title"></title>
+        <title>{{title}}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta charset="utf-8" />
         <script src="/highlight.js"></script>
         <script>hljs.highlightAll();</script>
     </head>
     <body>
-        <div id="header"></div>
+        {{components.header}}
         <main class="container">
             <hgroup>
-                <h1 id="post-title-header"></h1>
+                <h1>{{title}}</h1>
                 <h4>
-                    Posted on <text id="created-at">YYYY-MM-DD</text>
+                    Posted on <text>{{createdat}}</text>
                 </h4>
             </hgroup>
-            <div id="blog-content"></p>
+            {{content}}
         </main>
     </body>
 </html>
