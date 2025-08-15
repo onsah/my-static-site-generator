@@ -9,12 +9,17 @@ type variable =
     }
 [@@deriving sexp_of]
 
-and node =
+and node = {
+  kind : node_kind;
+  start_location : Location.t;
+}
+
+and node_kind =
   | Text of string
   | Variable of variable
   | For of {
-      variable : variable;
-      collection : variable;
+      variable : string;
+      collection : string;
       body : node List.t;
     }
 [@@deriving sexp, compare]

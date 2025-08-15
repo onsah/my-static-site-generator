@@ -72,9 +72,9 @@ let generate_font_files ~(content_path : Path.t) =
         path = Path.join (Path.from "fonts") name;
       })
 
-let generate_components_context ~content_path : TemplatingEngine.context_item =
+let generate_components_context ~content_path : Context.context_item =
   let module Map = Core.Map.Poly in
-  let open TemplatingEngine in
+  let open Context in
   let components_path = Path.join content_path (Path.from "components") in
   Object
     (components_path |> DiskIO.list
@@ -83,9 +83,9 @@ let generate_components_context ~content_path : TemplatingEngine.context_item =
              String (DiskIO.read_all (Path.join components_path path)) ))
     |> Map.of_alist_exn)
 
-let generate_context ~content_path : TemplatingEngine.context =
+let generate_context ~content_path : Context.context =
   let module Map = Core.Map.Poly in
-  let open TemplatingEngine in
+  let open Context in
   let pages_path = Path.join content_path (Path.from "pages") in
   let index =
     ( "index",
@@ -213,7 +213,7 @@ let generate ~content_path =
            in
            let context =
              Map.of_alist_exn
-               TemplatingEngine.
+               Context.
                  [
                    ("title", String title);
                    ("createdat", String (created_at |> Date.to_string));
