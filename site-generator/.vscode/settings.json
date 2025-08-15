@@ -8,5 +8,18 @@
         "editor.tabSize": 2,
         "editor.insertSpaces": true,
         "editor.formatOnSave": true
+    },
+    "files.watcherExclude": {
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true,
+        "**/.hg/store/**": true,
+    },
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/bower_components": true,
+        "**/*.code-search": true,
+        "**/_build/**": true,
+        "**/.direnv/**": true,
+        "odig/**": true,
     }
 }
