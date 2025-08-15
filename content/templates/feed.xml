@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+   <channel>
+      <title>Aiono Blog</title>
+      <link>https://blog.aiono.dev/</link>
+      <description>A RSS news feed containing my blog posts about programming.</description>
+      <language>en-us</language>
+      <pubDate>{{pubDate}} 00:00:00 GMT</pubDate>
+      <docs>https://www.rssboard.org/rss-specification</docs>
+      <generator>Aiono's Custom Static Site Generator</generator>
+      <managingEditor>sahinonur2000@hotmail.com (Onur Sahin)</managingEditor>
+      <webMaster>sahinonur2000@hotmail.com (Onur Sahin)</webMaster>
+      <atom:link href="https://blog.aiono.dev/feed.xml" rel="self" type="application/rss+xml"/>      
+      {{foreach post in posts
+      <item>
+         <title>{{post.title}}</title>
+         <link>{{post.url}}</link>
+         <guid>{{post.url}}</guid>
+         <pubDate>{{post.createdatRfc822}} 00:00:00 GMT</pubDate>
+      </item>
+      end}}
+   </channel>
+</rss>

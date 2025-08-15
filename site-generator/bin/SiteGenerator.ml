@@ -1,5 +1,6 @@
 open Core
 open Templating
+module Map = Core.Map.Poly
 
 let ( = ) = Poly.( = )
 
@@ -129,9 +130,14 @@ let generate_context ~content_path : Context.context =
                      [
                        ("title", String title);
                        ("createdat", String (created_at |> Date.to_string));
+                       ("createdatRfc822", String (created_at |> Rfc822.of_date));
                        ("summary", String summary);
                        ("path", String (post_path ~title));
                        ("content", String post_text);
+                       ( "url",
+                         String
+                           (sprintf "https://blog.aiono.dev/posts/%s"
+                              (post_path2 ~title |> Path.to_string)) );
                      ]))) )
   in
   Map.of_alist_exn
@@ -228,14 +234,24 @@ let generate ~content_path =
                |> Result.ok_or_failwith;
              path = post_path2 ~title;
            })
+  and feed_file =
+    let template =
+      Path.join content_path (Path.from_parts [ "templates"; "feed.xml" ])
+      |> DiskIO.read_all
+    and context =
+      let date = Date.today ~zone:Timezone.utc |> Rfc822.of_date in
+      Map.add_exn context ~key:"pubDate" ~data:(String date)
+    in
+    {
+      content =
+        TemplatingEngine.run ~template ~context
+        |> Result.map_error ~f:TemplatingEngine.show_error
+        |> Result.ok_or_failwith;
+      path = Path.from "feed.xml";
+    }
   in
-  (* let post_files =
-    List.map
-      (generate_posts ~content_path ~header_component:(clone_page header_component))
-      ~f:(fun post -> { content = post.page |> Soup.to_string; path = post.path2 })
-  in *)
   {
     output_files =
-      [ index_file; blog_file; style_file; highlight_js_file ]
+      [ index_file; blog_file; style_file; highlight_js_file; feed_file ]
       @ font_files @ post_files;
   }
