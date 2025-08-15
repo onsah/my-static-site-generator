@@ -106,9 +106,7 @@ let iter (chars : char Sequence.t)
         | ';' ->
             yield (make_token Semicolon start_location);
             default chars
-        | 'a' .. 'z'
-        | 'A' .. 'Z'
-        | '<' | '>' | '/' | '=' | '"' | '\'' | '-' | ',' | '.' ->
+        | char when is_text_char char ->
             text chars (String.of_char char) ~start_location
         | _ -> abort (`TokenizerUnexpected char_loc))
     | None -> ()
@@ -146,7 +144,7 @@ let iter (chars : char Sequence.t)
         ()
     | Some (((char, _) as char_with_loc), chars) -> (
         match char with
-        | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '<' | '>' | '/' ->
+        | char when is_text_char char ->
             text chars (acc ^ String.of_char char) ~start_location
         | '.' ->
             let text_token = make_token (kind_from_text acc) start_location in
@@ -157,6 +155,14 @@ let iter (chars : char Sequence.t)
         | _ ->
             yield (make_token (kind_from_text acc) start_location);
             default (Sequence.shift_right chars char_with_loc))
+  and is_text_char char =
+    match char with
+    | 'a' .. 'z'
+    | 'A' .. 'Z'
+    | '0' .. '9'
+    | '<' | '>' | '/' | '=' | '"' | '\'' | '-' | ',' | '?' | ':' | '@' | '+' ->
+        true
+    | _ -> false
   in
   chars |> with_location |> default
 
@@ -201,4 +207,41 @@ let%test_unit "tokenizer_dot" =
          make_token (Text "foo") (Location.make ~line:0 ~column:0);
          make_token Dot (Location.make ~line:0 ~column:3);
          make_token (Text "bar") (Location.make ~line:0 ~column:4);
+       ])
+
+let%test_unit "tokenizer accepts '?' in text" =
+  let string = "foo?bar" in
+  [%test_eq: (token list, error) result]
+    (string |> String.to_sequence |> tokenize |> Result.map ~f:Sequence.to_list)
+    (Ok [ make_token (Text "foo?bar") (Location.make ~line:0 ~column:0) ])
+
+let%test_unit "tokenizer accepts ':' in text" =
+  let string = "foo:bar" in
+  [%test_eq: (token list, error) result]
+    (string |> String.to_sequence |> tokenize |> Result.map ~f:Sequence.to_list)
+    (Ok [ make_token (Text "foo:bar") (Location.make ~line:0 ~column:0) ])
+
+let%test_unit "tokenizer accepts '@' in text" =
+  let string = "foo@bar" in
+  [%test_eq: (token list, error) result]
+    (string |> String.to_sequence |> tokenize |> Result.map ~f:Sequence.to_list)
+    (Ok [ make_token (Text "foo@bar") (Location.make ~line:0 ~column:0) ])
+
+let%test_unit "tokenizer accepts '+' in text" =
+  let string = "foo+bar" in
+  [%test_eq: (token list, error) result]
+    (string |> String.to_sequence |> tokenize |> Result.map ~f:Sequence.to_list)
+    (Ok [ make_token (Text "foo+bar") (Location.make ~line:0 ~column:0) ])
+
+let%test_unit "tokenizer accepts digits in text" =
+  let string = "foo 0123456789 bar" in
+  [%test_eq: (token list, error) result]
+    (string |> String.to_sequence |> tokenize |> Result.map ~f:Sequence.to_list)
+    (Ok
+       [
+         make_token (Text "foo") (Location.make ~line:0 ~column:0);
+         make_token Space (Location.make ~line:0 ~column:3);
+         make_token (Text "0123456789") (Location.make ~line:0 ~column:4);
+         make_token Space (Location.make ~line:0 ~column:14);
+         make_token (Text "bar") (Location.make ~line:0 ~column:15);
        ])
