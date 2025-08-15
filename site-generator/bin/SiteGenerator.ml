@@ -145,7 +145,7 @@ let generate ~content_path =
         TemplatingEngine.run
           ~template:
             (Path.join content_path
-               (Path.from_parts [ "templates"; "index.new.html" ])
+               (Path.from_parts [ "templates"; "index.html" ])
             |> DiskIO.read_all)
           ~context
         |> Result.map_error ~f:TemplatingEngine.show_error
@@ -173,7 +173,7 @@ let generate ~content_path =
         TemplatingEngine.run
           ~template:
             (Path.join content_path
-               (Path.from_parts [ "templates"; "blog.new.html" ])
+               (Path.from_parts [ "templates"; "blog.html" ])
             |> DiskIO.read_all)
           ~context
         |> Result.map_error ~f:TemplatingEngine.show_error
@@ -204,7 +204,7 @@ let generate ~content_path =
     |> List.map ~f:(fun (path, { title; created_at }) ->
            let template =
              Path.join content_path
-               (Path.from_parts [ "templates"; "post.new.html" ])
+               (Path.from_parts [ "templates"; "post.html" ])
              |> DiskIO.read_all
            in
            let content =
