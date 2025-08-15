@@ -1,6 +1,13 @@
 open! Core
 module Sequence = MySequence
 
-type error
+type error =
+  [ `ParserUnexpected of Tokenizer.token
+  | `ParserFinishedUnexpectedly of Location.t
+  ]
+[@@deriving sexp, compare]
 
-val parse : Tokenizer.token Sequence.t -> (Syntax.node Sequence.t, error) result
+val show_error : error -> string
+
+val parse :
+  Tokenizer.token Sequence.t -> (Syntax.node Sequence.t, [> error ]) result
