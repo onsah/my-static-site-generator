@@ -10,15 +10,16 @@ homepage: "https://github.com/username/reponame"
 doc: "https://url/to/documentation"
 bug-reports: "https://github.com/username/reponame/issues"
 depends: [
-  "ocaml" {= "5.2.0"}
-  "dune" {>= "3.11"}
+  "ocaml" {= "5.3.0"}
+  "dune" {>= "3.17"}
   "core"
+  "core_unix"
+  "yojson"
   "cmarkit"
   "lambdasoup" {>= "1.1.1"}
   "odoc" {with-doc}
 ]
 build: [
-  ["dune" "subst"] {dev}
   [
     "dune"
     "build"

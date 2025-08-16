@@ -1,6 +1,6 @@
-(lang dune 3.11)
+(lang dune 3.17)
 
-(name my_static_site_generator)
+(name website-generator)
 
 (generate_opam_files true)
 
@@ -16,16 +16,20 @@
 (documentation https://url/to/documentation)
 
 (package
- (name my_static_site_generator)
+ (name website-generator)
  (synopsis "A short synopsis")
  (description "A longer description")
  (depends 
-  (ocaml (= 5.2.0))
+  (ocaml (= 5.3.0))
   dune 
-  core 
+  core
+  core_unix
+  yojson
   cmarkit
   (lambdasoup (>= 1.1.1)))
  (tags
   (topics "to describe" your project)))
+
+(subst disabled)
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project

@@ -8,9 +8,21 @@
         "repo": "nixpkgs"
       },
       "branch": "nixpkgs-unstable",
-      "revision": "d74de548348c46cf25cb1fcc4b74f38103a4590d",
-      "url": "https://github.com/nixos/nixpkgs/archive/d74de548348c46cf25cb1fcc4b74f38103a4590d.tar.gz",
-      "hash": "102xz1l148gk8gw82pv2srk5iak8czi5jjp0w9bdpgxiwqnw07i3"
+      "revision": "32f313e49e42f715491e1ea7b306a87c16fe0388",
+      "url": "https://github.com/nixos/nixpkgs/archive/32f313e49e42f715491e1ea7b306a87c16fe0388.tar.gz",
+      "hash": "1z4ga87qla5300qwib3dnjnkaywwh8y1qqsb8w2mrsrw78k9xmlw"
+    },
+    "opam-nix": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "tweag",
+        "repo": "opam-nix"
+      },
+      "branch": "main",
+      "revision": "0fa28f3ebeb8c6fe193646f2e15f3cd5d7cbeec2",
+      "url": "https://github.com/tweag/opam-nix/archive/0fa28f3ebeb8c6fe193646f2e15f3cd5d7cbeec2.tar.gz",
+      "hash": "159w0x0ik1y426isry7hf37rfmqnmsnshdcha58d4b6jryw9h7a7"
     }
   },
   "version": 3

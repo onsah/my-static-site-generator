@@ -4,14 +4,21 @@
 }:
 let
   pkgs = import sources.nixpkgs { inherit system; };
+  opam-nix = import sources.opam-nix;
+in
+let
+  package = (pkgs.callPackage ./build.nix { inherit opam-nix; });
 in
 pkgs.mkShell {
 
-  inputsFrom = [ (pkgs.callPackage ./build.nix {}) ];
+  inputsFrom = [ package.website-generator ];
 
-  packages = with pkgs; [
-    ocamlPackages.ocaml-lsp
-    ocamlPackages.ocamlformat-rpc-lib
-    ocamlPackages.utop
+  packages = [
+    package."ocaml-lsp-server"
+    package."ocamlformat"
+    # ocamlPackages.ocaml-lsp
+    # ocamlPackages.ocamlformat-rpc-lib
+    # ocamlPackages.ocamlformat
+    # ocamlPackages.utop
   ];
 }
