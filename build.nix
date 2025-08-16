@@ -2,10 +2,11 @@
   stdenv,
   lib,
   callPackage,
+  opam-nix,
 }:
 let
   fileset = lib.fileset;
-  website-generator = callPackage ./site-generator/build.nix { };
+  website-generator = (callPackage ./site-generator/build.nix { inherit opam-nix; }).website-generator;
 in
 stdenv.mkDerivation {
   name = "aiono-website";
