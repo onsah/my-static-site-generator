@@ -10,4 +10,4 @@ type error =
 val show_error : error -> string
 
 val parse :
-  Tokenizer.token Sequence.t -> (Syntax.node Sequence.t, [> error ]) result
+  Tokenizer.token Sequence.t -> (Syntax.node List.t, [> error ]) result

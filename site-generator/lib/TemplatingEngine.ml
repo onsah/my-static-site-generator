@@ -31,10 +31,10 @@ let error_location : error -> Location.t = function
 
 let run ~(template : string) ~(context : context) =
   let open Result.Let_syntax in
-  let chars = template |> String.to_sequence in
-  let%bind tokens = Tokenizer.tokenize chars in
-  let%bind nodes = Parser.parse tokens in
-  Subst.subst nodes ~context
+  let chars = String.to_sequence template in
+  let%bind tokens = Tokenizer.tokenize chars |> Sequence.flatten_result in
+  let%bind nodes = Parser.parse (tokens |> Sequence.of_list) in
+  Subst.subst (nodes |> Sequence.of_list) ~context
 
 let%test_unit "perform_templating_error_location" =
   let template = "<html><head></head><body>{{/}}</body></html>" in

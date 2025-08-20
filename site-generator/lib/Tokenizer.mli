@@ -38,4 +38,4 @@ val show_error :
   ] ->
   string
 
-val tokenize : char Sequence.t -> (token Sequence.t, [> error ]) result
+val tokenize : char Sequence.t -> (token, [> error ]) result Sequence.t

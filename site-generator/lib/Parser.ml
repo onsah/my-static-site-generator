@@ -165,14 +165,7 @@ let rec iter (tokens : Tokenizer.token Sequence.t)
             | Ok body ->
                 yield
                   {
-                    kind =
-                      Syntax.(
-                        For
-                          {
-                            variable;
-                            collection;
-                            body = body |> Sequence.to_list;
-                          });
+                    kind = Syntax.(For { variable; collection; body });
                     start_location;
                   };
                 right_curly tokens ~prev_location:token.end_location ~level
@@ -186,23 +179,26 @@ let rec iter (tokens : Tokenizer.token Sequence.t)
   default tokens ~level:0
 
 let parse (tokens : Tokenizer.token Sequence.t) :
-    (Syntax.node Sequence.t, [> error ]) result =
+    (Syntax.node List.t, [> error ]) result =
   (Sequence.of_fallible_iterator (iter tokens) |> Sequence.flatten_result
-    : (Syntax.node Sequence.t, error) result
-    :> (Syntax.node Sequence.t, [> error ]) result)
+    : (Syntax.node List.t, error) result
+    :> (Syntax.node List.t, [> error ]) result)
 
 let str_generator =
   let first = Quickcheck.Generator.char_alpha in
   let rest = String.gen_with_length 4 Quickcheck.Generator.char_alphanum in
   Quickcheck.Generator.map2 first rest ~f:(sprintf "%c%s")
 
+let parse_test string =
+  let tokens =
+    string |> String.to_sequence |> Tokenizer.tokenize
+    |> Sequence.flatten_result |> Result.ok |> Option.value_exn
+  in
+  tokens |> Sequence.of_list |> parse
+
 let%test_unit "parser_variable_id" =
   Quickcheck.test ~trials:50 str_generator ~f:(fun s1 ->
-      let tokens =
-        sprintf "{{%s}}" s1 |> String.to_sequence |> Tokenizer.tokenize
-        |> Result.ok |> Option.value_exn
-      in
-      let actual = parse tokens |> Result.map ~f:Sequence.to_list in
+      let actual = sprintf "{{%s}}" s1 |> parse_test in
       let expected =
         Ok
           Syntax.
@@ -218,11 +214,7 @@ let%test_unit "parser_variable_id" =
 let%test_unit "parser_variable_field" =
   Quickcheck.test ~trials:50
     (Quickcheck.Generator.both str_generator str_generator) ~f:(fun (s1, s2) ->
-      let tokens =
-        sprintf "{{%s.%s}}" s1 s2 |> String.to_sequence |> Tokenizer.tokenize
-        |> Result.ok |> Option.value_exn
-      in
-      let actual = parse tokens |> Result.map ~f:Sequence.to_list in
+      let actual = sprintf "{{%s.%s}}" s1 s2 |> parse_test in
       let expected =
         Ok
           Syntax.
@@ -239,13 +231,11 @@ let%test_unit "parser_foreach" =
   Quickcheck.test ~trials:50
     (Quickcheck.Generator.both str_generator str_generator)
     ~f:(fun (item_name, collection_name) ->
-      let tokens =
+      let actual =
         sprintf "{{foreach %s in %s {{%s}} end}}" item_name collection_name
           item_name
-        |> String.to_sequence |> Tokenizer.tokenize |> Result.ok
-        |> Option.value_exn
+        |> parse_test
       in
-      let actual = parse tokens |> Result.map ~f:Sequence.to_list in
       let expected =
         let body_start_location =
           Location.make ~line:0

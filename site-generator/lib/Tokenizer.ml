@@ -166,82 +166,75 @@ let iter (chars : char Sequence.t)
   in
   chars |> with_location |> default
 
-let tokenize (chars : char Sequence.t) : (token Sequence.t, [> error ]) result =
-  (Sequence.of_fallible_iterator (iter chars) |> Sequence.flatten_result
-    : (token Sequence.t, error) result
-    :> (token Sequence.t, [> error ]) result)
+let tokenize (chars : char Sequence.t) : (token, [> error ]) result Sequence.t =
+  (Sequence.of_fallible_iterator (iter chars)
+    : (token, error) result Sequence.t
+    :> (token, [> error ]) result Sequence.t)
 
-let%test_unit "tokenizer_basic" =
-  let string = "{{foo}}" in
-  let result =
-    string |> String.to_sequence |> tokenize |> Result.map ~f:Sequence.to_list
-  in
-  [%test_eq: (token list, error) result] result
-    (Ok
-       [
-         make_token LeftCurly (Location.make ~line:0 ~column:0);
-         make_token (Text "foo") (Location.make ~line:0 ~column:2);
-         make_token RightCurly (Location.make ~line:0 ~column:5);
-       ])
+module Tests = struct
+  let test_tokenize (string : string) : (token list, [> error ]) result =
+    string |> String.to_sequence |> tokenize |> Sequence.flatten_result
 
-let%test_unit "tokenizer_left_angle" =
-  let string = "<{{foo}}" in
-  let result =
-    string |> String.to_sequence |> tokenize |> Result.map ~f:Sequence.to_list
-  in
-  [%test_eq: (token list, error) result] result
-    (Ok
-       [
-         make_token (Text "<") (Location.make ~line:0 ~column:0);
-         make_token LeftCurly (Location.make ~line:0 ~column:1);
-         make_token (Text "foo") (Location.make ~line:0 ~column:3);
-         make_token RightCurly (Location.make ~line:0 ~column:6);
-       ])
+  let%test_unit "tokenizer_basic" =
+    let result = "{{foo}}" |> test_tokenize in
+    [%test_eq: (token list, error) result] result
+      (Ok
+         [
+           make_token LeftCurly (Location.make ~line:0 ~column:0);
+           make_token (Text "foo") (Location.make ~line:0 ~column:2);
+           make_token RightCurly (Location.make ~line:0 ~column:5);
+         ])
 
-let%test_unit "tokenizer_dot" =
-  let string = "foo.bar" in
-  [%test_eq: (token list, error) result]
-    (string |> String.to_sequence |> tokenize |> Result.map ~f:Sequence.to_list)
-    (Ok
-       [
-         make_token (Text "foo") (Location.make ~line:0 ~column:0);
-         make_token Dot (Location.make ~line:0 ~column:3);
-         make_token (Text "bar") (Location.make ~line:0 ~column:4);
-       ])
+  let%test_unit "tokenizer_left_angle" =
+    let result = "<{{foo}}" |> test_tokenize in
+    [%test_eq: (token list, error) result] result
+      (Ok
+         [
+           make_token (Text "<") (Location.make ~line:0 ~column:0);
+           make_token LeftCurly (Location.make ~line:0 ~column:1);
+           make_token (Text "foo") (Location.make ~line:0 ~column:3);
+           make_token RightCurly (Location.make ~line:0 ~column:6);
+         ])
 
-let%test_unit "tokenizer accepts '?' in text" =
-  let string = "foo?bar" in
-  [%test_eq: (token list, error) result]
-    (string |> String.to_sequence |> tokenize |> Result.map ~f:Sequence.to_list)
-    (Ok [ make_token (Text "foo?bar") (Location.make ~line:0 ~column:0) ])
+  let%test_unit "tokenizer_dot" =
+    let result = "foo.bar" |> test_tokenize in
+    [%test_eq: (token list, error) result] result
+      (Ok
+         [
+           make_token (Text "foo") (Location.make ~line:0 ~column:0);
+           make_token Dot (Location.make ~line:0 ~column:3);
+           make_token (Text "bar") (Location.make ~line:0 ~column:4);
+         ])
 
-let%test_unit "tokenizer accepts ':' in text" =
-  let string = "foo:bar" in
-  [%test_eq: (token list, error) result]
-    (string |> String.to_sequence |> tokenize |> Result.map ~f:Sequence.to_list)
-    (Ok [ make_token (Text "foo:bar") (Location.make ~line:0 ~column:0) ])
+  let%test_unit "tokenizer accepts '?' in text" =
+    let result = "foo?bar" |> test_tokenize in
+    [%test_eq: (token list, error) result] result
+      (Ok [ make_token (Text "foo?bar") (Location.make ~line:0 ~column:0) ])
 
-let%test_unit "tokenizer accepts '@' in text" =
-  let string = "foo@bar" in
-  [%test_eq: (token list, error) result]
-    (string |> String.to_sequence |> tokenize |> Result.map ~f:Sequence.to_list)
-    (Ok [ make_token (Text "foo@bar") (Location.make ~line:0 ~column:0) ])
+  let%test_unit "tokenizer accepts ':' in text" =
+    let result = "foo:bar" |> test_tokenize in
+    [%test_eq: (token list, error) result] result
+      (Ok [ make_token (Text "foo:bar") (Location.make ~line:0 ~column:0) ])
 
-let%test_unit "tokenizer accepts '+' in text" =
-  let string = "foo+bar" in
-  [%test_eq: (token list, error) result]
-    (string |> String.to_sequence |> tokenize |> Result.map ~f:Sequence.to_list)
-    (Ok [ make_token (Text "foo+bar") (Location.make ~line:0 ~column:0) ])
+  let%test_unit "tokenizer accepts '@' in text" =
+    let result = "foo@bar" |> test_tokenize in
+    [%test_eq: (token list, error) result] result
+      (Ok [ make_token (Text "foo@bar") (Location.make ~line:0 ~column:0) ])
 
-let%test_unit "tokenizer accepts digits in text" =
-  let string = "foo 0123456789 bar" in
-  [%test_eq: (token list, error) result]
-    (string |> String.to_sequence |> tokenize |> Result.map ~f:Sequence.to_list)
-    (Ok
-       [
-         make_token (Text "foo") (Location.make ~line:0 ~column:0);
-         make_token Space (Location.make ~line:0 ~column:3);
-         make_token (Text "0123456789") (Location.make ~line:0 ~column:4);
-         make_token Space (Location.make ~line:0 ~column:14);
-         make_token (Text "bar") (Location.make ~line:0 ~column:15);
-       ])
+  let%test_unit "tokenizer accepts '+' in text" =
+    let result = "foo+bar" |> test_tokenize in
+    [%test_eq: (token list, error) result] result
+      (Ok [ make_token (Text "foo+bar") (Location.make ~line:0 ~column:0) ])
+
+  let%test_unit "tokenizer accepts digits in text" =
+    let result = "foo 0123456789 bar" |> test_tokenize in
+    [%test_eq: (token list, error) result] result
+      (Ok
+         [
+           make_token (Text "foo") (Location.make ~line:0 ~column:0);
+           make_token Space (Location.make ~line:0 ~column:3);
+           make_token (Text "0123456789") (Location.make ~line:0 ~column:4);
+           make_token Space (Location.make ~line:0 ~column:14);
+           make_token (Text "bar") (Location.make ~line:0 ~column:15);
+         ])
+end

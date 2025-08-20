@@ -22,12 +22,12 @@ let of_fallible_iterator (type a b) (iter : (a, b) MyGenerator.fallibe_iterator)
 let cons (a : 'a) (seq : 'a Sequence.t) : 'a Sequence.t = append (return a) seq
 
 (** Eagerly computes the sequence until the end or until and error is found *)
-let flatten_result (seq : ('a, 'b) result t) : ('a Sequence.t, 'b) result =
+let flatten_result (seq : ('a, 'b) result t) : ('a List.t, 'b) result =
   seq
-  |> fold_result ~init:empty ~f:(fun acc x ->
+  |> fold_result ~init:[] ~f:(fun acc result ->
          let open Result.Let_syntax in
-         let%map a = x in
-         append acc (Sequence.return a))
+         let%map a = result in
+         List.append acc [ a ])
 
 let%test_unit "of_fallible_iterator_1" =
   let iter MyGenerator.{ yield; abort } =
