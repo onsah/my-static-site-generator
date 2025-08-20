@@ -1,6 +1,8 @@
 {
-    "languageTool.enabled": true,
-    "languageTool.language": "en",
+    "cSpell.enabledFileTypes": {
+        "*": false,
+        "markdown": true
+    },
     "cSpell.words": [
         "aiono",
         "linuxrc",
@@ -9,5 +11,6 @@
         "pkgs",
         "pname",
         "über"
-    ]
+    ],
+
 }
