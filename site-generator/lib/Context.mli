@@ -1,15 +1,16 @@
 (** I use the version of the map where comparator is polymorphic *)
 module Map = Core.Map.Poly
 
-(** Type of the values for template variables *)
+(** Type of the values for template variables. *)
 type context_item =
-  | String of string
-  | Number of float
-  | Collection of context_item list
+  | String of string  (** Plain string value. *)
+  | Number of float  (** Plain numeric value. *)
+  | Collection of context_item list  (** List-like value. *)
   | Object of (string, context_item) Map.t
+      (** Object, similar to a JSON object. *)
 [@@deriving sexp]
 
-(** Mapping from template variables to their values. *)
+(** A context is a mapping from template variables to their values. *)
 type context = (string, context_item) Map.t [@@deriving sexp]
 
 type context_item_type =

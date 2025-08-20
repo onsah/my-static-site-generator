@@ -1,0 +1,45 @@
+{0 Website Generator}
+
+Library part of the website generator. It mostly follows {{:https://shopify.github.io/liquid/} Liquid Templating Language}. 
+
+Main entry point to the library is {!Templating.TemplatingEngine}.
+
+{1 Syntax}
+
+A template is a valid HTML file with some strings in a special syntax. Anything except the special syntax is untouched.
+
+{2 Item}
+
+An identifier between [{{] and [}}] is a variable. It's replaced with the corresponding item in the context.
+
+An identifier is any string that matches with regex [[a-zA-Z][a-zA-Z0-9-_]*].
+
+An item can be a string, collection or an object.
+
+{3 Example}
+
+If template:
+
+{v
+<div>{{foo}}</div>
+v}
+
+is called with context [{ "foo": "hello" }], it returns:
+
+{v
+<div>hello</div>
+v}
+
+{2 For Blocks}
+
+Iterates over a collection item.
+
+{3 Example}
+
+{v
+{{foreach post in posts
+    {{post.title}}
+end}}
+v}
+
+The body is duplicated for each item in [posts].
