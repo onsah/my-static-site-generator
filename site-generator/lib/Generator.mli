@@ -13,9 +13,9 @@ type ('a, 'b) fallible_iter_args = {
 type ('a, 'b) fallibe_iterator = ('a, 'b) fallible_iter_args -> unit
 
 type ('a, 'b) step =
-  | Next of 'a
-  | Error of 'b
-  | Done
+  | Next of 'a  (** Yields an element. May have more elements. *)
+  | Error of 'b  (** Finished with a failure. *)
+  | Done  (** Finished sucessfully *)
 
 type ('a, 'b) fallible_generator = unit -> ('a, 'b) step
 
