@@ -14,11 +14,8 @@ pkgs.mkShell {
   inputsFrom = [ package.website-generator ];
 
   packages = [
-    package."ocaml-lsp-server"
-    package."ocamlformat"
-    # ocamlPackages.ocaml-lsp
-    # ocamlPackages.ocamlformat-rpc-lib
-    # ocamlPackages.ocamlformat
-    # ocamlPackages.utop
+    package.ocaml-lsp-server
+    package.ocamlformat
+    package.utop
   ];
 }

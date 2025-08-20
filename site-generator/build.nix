@@ -37,4 +37,5 @@ in
   ocaml-base-compiler = "*";
   ocaml-lsp-server = "*";
   ocamlformat = "*";
+  utop = "*";
 })
