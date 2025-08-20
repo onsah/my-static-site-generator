@@ -17,8 +17,8 @@ let show_error (error : error) =
       sprintf "Parser finished unexpectedly at %s" (Location.show location)
 
 let rec iter (tokens : Tokenizer.token Sequence.t)
-    ({ yield; abort } : (Syntax.node, error) Sequence.fallible_iter_args) : unit
-    =
+    ({ yield; abort } : (Syntax.node, error) Generator.fallible_iter_args) :
+    unit =
   let rec default tokens ~level =
     let open Tokenizer in
     match Sequence.next tokens with
@@ -159,6 +159,7 @@ let rec iter (tokens : Tokenizer.token Sequence.t)
         | End -> (
             let body_parse_result =
               Sequence.of_fallible_iterator (iter (body |> Sequence.of_list))
+              |> Sequence.flatten_result
             in
             match body_parse_result with
             | Ok body ->
@@ -186,7 +187,7 @@ let rec iter (tokens : Tokenizer.token Sequence.t)
 
 let parse (tokens : Tokenizer.token Sequence.t) :
     (Syntax.node Sequence.t, [> error ]) result =
-  (Sequence.of_fallible_iterator (iter tokens)
+  (Sequence.of_fallible_iterator (iter tokens) |> Sequence.flatten_result
     : (Syntax.node Sequence.t, error) result
     :> (Syntax.node Sequence.t, [> error ]) result)
 

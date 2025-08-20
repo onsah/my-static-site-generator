@@ -1,41 +1,45 @@
 open Core
+module MyGenerator = Generator
 include Sequence
 
-type 'a iterator = ('a -> unit) -> unit
+let of_iterator (type a) (iter : a MyGenerator.iterator) : a t =
+  let generator = MyGenerator.of_iterator iter in
+  Sequence.unfold_step ~init:generator ~f:(fun generator ->
+      match generator () with
+      | None -> Done
+      | Some value -> Yield { value; state = generator })
 
-let of_iterator (type a) (iter : a iterator) : a t =
-  let open Effect in
-  let open Effect.Deep in
-  let open struct
-    type _ Effect.t += Yield : a -> unit Effect.t
-  end in
-  let yield x = perform (Yield x) in
-  match iter yield with
-  | _ -> empty
-  | effect Yield x, k -> append (return x) (continue k ())
+let of_fallible_iterator (type a b) (iter : (a, b) MyGenerator.fallibe_iterator)
+    : (a, b) result t =
+  let generator = MyGenerator.of_fallible_iterator iter in
+  Sequence.unfold_step ~init:generator ~f:(fun generator ->
+      let open MyGenerator in
+      match generator () with
+      | Next value -> Yield { value = Ok value; state = generator }
+      | Error error -> Yield { value = Error error; state = generator }
+      | Done -> Done)
 
-type ('a, 'b) fallible_iter_args = {
-  yield : 'a -> unit;
-  abort : 'c. 'b -> 'c;
-}
+let cons (a : 'a) (seq : 'a Sequence.t) : 'a Sequence.t = append (return a) seq
 
-type ('a, 'b) fallibe_iterator = ('a, 'b) fallible_iter_args -> unit
+(** Eagerly computes the sequence until the end or until and error is found *)
+let flatten_result (seq : ('a, 'b) result t) : ('a Sequence.t, 'b) result =
+  seq
+  |> fold_result ~init:empty ~f:(fun acc x ->
+         let open Result.Let_syntax in
+         let%map a = x in
+         append acc (Sequence.return a))
 
-let of_fallible_iterator (type a b) (iter : (a, b) fallibe_iterator) :
-    (a t, b) result =
-  let open Effect in
-  let open Effect.Deep in
-  let open struct
-    type _ Effect.t += Yield : a -> unit Effect.t
-
-    exception Abort of b
-  end in
-  let yield x = perform (Yield x) in
-  let abort x = raise (Abort x) in
-  match iter { yield; abort } with
-  | _ -> Ok empty
-  | effect Yield x, k ->
-      let open Core.Result.Let_syntax in
-      let%map rest = continue k () in
-      append (Sequence.return x) rest
-  | exception Abort error -> Error error
+let%test_unit "of_fallible_iterator_1" =
+  let iter MyGenerator.{ yield; abort } =
+    yield 1;
+    yield 2;
+    abort "error"
+  in
+  let seq = of_fallible_iterator iter in
+  let i, seq = seq |> next |> Option.value_exn in
+  [%test_eq: (int, string) result] i (Ok 1);
+  let i, _ = seq |> next |> Option.value_exn in
+  [%test_eq: (int, string) result] i (Ok 2);
+  let i, seq = seq |> next |> Option.value_exn in
+  [%test_eq: (int, string) result] i (Error "error");
+  [%test_eq: bool] (seq |> Sequence.is_empty) true

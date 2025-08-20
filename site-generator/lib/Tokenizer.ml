@@ -84,7 +84,7 @@ let with_location chars : (char * Location.t) Sequence.t =
       (next_loc, (char, loc)))
 
 let iter (chars : char Sequence.t)
-    ({ yield; abort } : (token, error) Sequence.fallible_iter_args) : unit =
+    ({ yield; abort } : (token, error) Generator.fallible_iter_args) : unit =
   let rec default chars =
     match Sequence.next chars with
     | Some (((char, start_location) as char_loc), chars) -> (
@@ -167,7 +167,7 @@ let iter (chars : char Sequence.t)
   chars |> with_location |> default
 
 let tokenize (chars : char Sequence.t) : (token Sequence.t, [> error ]) result =
-  (Sequence.of_fallible_iterator (iter chars)
+  (Sequence.of_fallible_iterator (iter chars) |> Sequence.flatten_result
     : (token Sequence.t, error) result
     :> (token Sequence.t, [> error ]) result)
 
