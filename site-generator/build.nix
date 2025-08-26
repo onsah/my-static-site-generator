@@ -38,4 +38,5 @@ in
   ocaml-lsp-server = "*";
   ocamlformat = "*";
   utop = "*";
+  odoc = "*";
 })

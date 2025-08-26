@@ -17,5 +17,6 @@ pkgs.mkShell {
     package.ocaml-lsp-server
     package.ocamlformat
     package.utop
+    package.odoc
   ];
 }
