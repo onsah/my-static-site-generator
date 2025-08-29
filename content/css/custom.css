@@ -47,8 +47,11 @@ body > header {
     display: grid;
     justify-content: center;
     height: 3.5em;
-    background-color: #52b788;
     grid-template-columns: 1fr var(--content-width) 1fr;
+    background-color: #2d6a4f;
+    a {
+        color: white !important;
+    }
 }
 
 header > nav {
