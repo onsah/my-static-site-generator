@@ -14,10 +14,9 @@
   --text: #212121;
   --text-light: #585858;
   --border: #898EA4;
-  --accent: #52b788;
+  --accent: #6663cb;
   --accent-hover: #1266e2;
   --accent-text: var(--bg);
-  --code: #d8f3dc;
   --preformatted: #ccc;
   --marked: #ffdd33;
   --disabled: #efefef;
@@ -35,10 +34,10 @@
     --accent-bg: #2b2b2b;
     --text: #dcdcdc;
     --text-light: #ababab;
-    --accent: #52b788;
+    --accent: #6663cb;
     --accent-hover: #CEEBED;
     --accent-text: var(--bg);
-    --code: #52b788;
+    
     --preformatted: #ccc;
     --disabled: #111;
   }

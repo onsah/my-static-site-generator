@@ -48,7 +48,7 @@ body > header {
     justify-content: center;
     height: 3.5em;
     grid-template-columns: 1fr var(--content-width) 1fr;
-    background-color: #2d6a4f;
+    background-color: #6663cb;
     a {
         color: white !important;
     }
