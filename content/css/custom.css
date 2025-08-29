@@ -44,28 +44,26 @@ pre code {
 /* END code blocks */
 
 body > header {
-    display: flex;
+    display: grid;
     justify-content: center;
     height: 3.5em;
     background-color: #52b788;
+    grid-template-columns: 1fr var(--content-width) 1fr;
 }
 
 header > nav {
     display: flex;
-    width: var(--max-content-width);
+    width: 100%;
     height: 100%;
     align-items: center;
+    grid-column: 2;
 }
 
 nav > .title {
     margin: auto;
     margin-left: 0;
     margin-right: 0;
-}
-
-header > nav {
-    padding: 1rem 0 1rem 0;
-}
+}   
 
 nav > .links {
     display: flex;
