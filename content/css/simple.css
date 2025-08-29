@@ -282,8 +282,6 @@ header > nav ol li {
 header > nav a,
 header > nav a:visited {
   margin: 0 0.5rem 1rem 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: var(--standard-border-radius);
   color: var(--text);
   display: inline-block;
   padding: 0.1rem 1rem;
@@ -293,9 +291,8 @@ header > nav a:visited {
 header > nav a:hover,
 header > nav a.current,
 header > nav a[aria-current="page"] {
-  border-color: var(--accent);
-  color: var(--accent);
   cursor: pointer;
+  text-decoration: underline;
 }
 
 /* Reduce nav side on mobile */
