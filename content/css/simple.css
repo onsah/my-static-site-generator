@@ -10,15 +10,15 @@
 
   /* Default (light) theme */
   --bg: #fff;
-  --accent-bg: #f5f7ff;
+  --accent-bg: #2b2b2b;
   --text: #212121;
   --text-light: #585858;
   --border: #898EA4;
-  --accent: #0d47a1;
+  --accent: #52b788;
   --accent-hover: #1266e2;
   --accent-text: var(--bg);
-  --code: #d81b60;
-  --preformatted: #444;
+  --code: #d8f3dc;
+  --preformatted: #ccc;
   --marked: #ffdd33;
   --disabled: #efefef;
 
@@ -35,10 +35,10 @@
     --accent-bg: #2b2b2b;
     --text: #dcdcdc;
     --text-light: #ababab;
-    --accent: #609A9E;
+    --accent: #52b788;
     --accent-hover: #CEEBED;
     --accent-text: var(--bg);
-    --code: #609A9E;
+    --code: #52b788;
     --preformatted: #ccc;
     --disabled: #111;
   }
@@ -341,7 +341,7 @@ article, fieldset, dialog {
   padding: 1rem;
   border-radius: var(--standard-border-radius);
   margin-bottom: 1rem;
-  background-color: #1a1a1a;
+  /* background-color: #1a1a1a; */
 }
 
 article h2:first-child,
@@ -350,7 +350,7 @@ article h3:first-child,
 section h3:first-child {
   margin-top: 0;
   a {
-    color: white;
+    color: var(--text);
     text-decoration: none;
     &:hover {
       text-decoration: underline;
