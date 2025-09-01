@@ -1,0 +1,8 @@
+#!/usr/bin/env nu
+
+# Dynamically generate the website when contents are changed.
+def main [] {
+    watch ./content/ { |_, path| 
+        ./site-generator/result/bin/website-generator --content-path ./content --out-path ./dist 
+    }
+}

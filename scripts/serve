@@ -1,0 +1,5 @@
+#!/usr/bin/env nu
+
+def main [] {
+    miniserve ./dist --index index.html --port 9090
+}
