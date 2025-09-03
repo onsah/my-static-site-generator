@@ -101,9 +101,10 @@ body > header p {
   margin: 1rem auto;
 }
 
-/* Add a little padding to ensure spacing is correct between content and header > nav */
 main {
+  /* Add a little padding to ensure spacing is correct between content and header > nav */
   padding-top: .5rem;
+  padding-bottom: 3rem;
 }
 
 body > footer {
