@@ -1,4 +1,6 @@
 #!/usr/bin/env nu
 
-rsync -av --ignore-times --delete -e ssh ./result/dist/ $"root@($env.SELF_HOSTED_SERVER_IP_V4):/var/www/html/blog/"
+def main [server_ip : string] {
+    ^rsync -av --ignore-times --delete -e ssh ./result/dist/ $"root@($server_ip):/var/www/html/blog/"
+}
 
