@@ -136,7 +136,7 @@ let generate_context ~content_path : Context.context =
                        ("content", String post_text);
                        ( "url",
                          String
-                           (sprintf "https://blog.aiono.dev/posts/%s"
+                           (sprintf "https://blog.aiono.dev/%s"
                               (post_path2 ~title |> Path.to_string)) );
                      ]))) )
   in
