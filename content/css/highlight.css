@@ -17,7 +17,6 @@ code.hljs {
 */
 .hljs {
   color: #c9d1d9;
-  background: var(--accent-bg);
 }
 .hljs-doctag,
 .hljs-keyword,

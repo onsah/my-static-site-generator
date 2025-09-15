@@ -22,7 +22,9 @@
   --disabled: #efefef;
 
   /* Layout */
-  --content-width: min(55rem, 90%)
+  --content-width: min(55rem, 90%);
+
+  --code-bg: #2b2b2b;
 }
 
 /* Dark theme */
@@ -309,6 +311,10 @@ aside, details, pre, progress {
   border: 1px solid var(--border);
   border-radius: var(--standard-border-radius);
   margin-bottom: 1rem;
+}
+
+pre {
+  background-color: var(--code-bg);
 }
 
 aside {
@@ -633,7 +639,7 @@ pre {
 /* Fix embedded code within pre */
 pre code {
   color: var(--preformatted);
-  background: none;
+  background: var(--code-bg);
   margin: 0;
   padding: 0;
 }
