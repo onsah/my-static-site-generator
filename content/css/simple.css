@@ -10,7 +10,7 @@
 
   /* Default (light) theme */
   --bg: #fff;
-  --accent-bg: #2b2b2b;
+  --accent-bg: #b0b0b0;
   --text: #212121;
   --text-light: #585858;
   --border: #898EA4;
@@ -421,11 +421,6 @@ th {
 th {
   background-color: var(--accent-bg);
   font-weight: bold;
-}
-
-tr:nth-child(even) {
-  /* Set every other cell slightly darker. Improves readability. */
-  background-color: var(--accent-bg);
 }
 
 table caption {
