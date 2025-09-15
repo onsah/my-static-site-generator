@@ -1,6 +1,10 @@
 #!/usr/bin/env nu
 
-def main [server_ip : string] {
+use ./generate
+
+export def main [server_ip : string] {
+    generate;
+
     ^rsync -av --ignore-times --delete -e ssh ./result/dist/ $"root@($server_ip):/var/www/html/blog/"
 }
 

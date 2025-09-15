@@ -1,5 +1,5 @@
 #!/usr/bin/env nu
 
-def main [] {
+export def main [] {
     miniserve ./dist --index index.html --port 9090
 }
