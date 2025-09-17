@@ -48,10 +48,6 @@ body > header {
     justify-content: center;
     height: 3.5em;
     grid-template-columns: 1fr var(--content-width) 1fr;
-    background-color: #6663cb;
-    a {
-        color: white !important;
-    }
 }
 
 header > nav {
@@ -76,6 +72,7 @@ nav > .links {
 
 nav > .links > a {
     margin-bottom: 0;
+    font-size: large;
 }
 
 .fill {
